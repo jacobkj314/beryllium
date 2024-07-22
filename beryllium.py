@@ -1,24 +1,42 @@
+#TODO:
+# - fill out the api under BerylliumHTTPRequestHandler
+# - move big html chunks to separate files
+# - compress images before uploading (handle this in js script)
+# - USER ACCOUNTS / login management / adding friends
+# - Captions and comments
+
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import urllib.parse
 import base64
 import os
 import http.cookies
+import json
+from datetime import datetime
 
-# Dummy function to check credentials (replace with real implementation)
 def check_credentials(username, password):
-    # Verify user credentials
-    # # # return username == "admin" and password == "password"
-    return True
+    return True #TODO account management
 
-# Simple in-memory session store
-sessions = {}
+sessions = {} # Simple in-memory session store
 
-# # # images
-images = {}
+images = {} # # # images structure
 
+last_reset_time = datetime.now()
+def check_needs_reset():
+    global last_reset_time, images
+    now = datetime.now()
+    intended_last_reset_time = datetime(now.year, now.month, now.day, 12, 0, 0, 0) #TODO : have a better and more varied function to determine when the server resets
+    if now > intended_last_reset_time and not last_reset_time > intended_last_reset_time: 
+        images = {}
+        last_reset_time = now
 
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        check_needs_reset()
+
+        if self.path.startswith('/api'):
+            self.handle_api()
+            return
+
         if self.path == '/logout':
             self.handle_logout()
             return
@@ -30,6 +48,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             self.handle_login_page()
 
     def do_POST(self):
+        check_needs_reset()
+
         if self.path == '/login':
             self.handle_login()
         else:
@@ -38,6 +58,13 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.handle_image_upload()
             else:
                 self.handle_login_page()
+
+    def handle_api(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/json")
+        self.end_headers()
+        json_content = json.dumps(images) #TODO: currently the api just returns a json dump of all the users images
+        self.wfile.write(json_content.encode('utf-8'))
 
     def handle_login_page(self):
         self.send_response(200)
@@ -66,9 +93,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         username = parsed_data.get('username', [None])[0]
         password = parsed_data.get('password', [None])[0]
 
-        if username and password and check_credentials(username, password):
+        if check_credentials(username, password):
             session_id = base64.b64encode(os.urandom(24)).decode('utf-8')
-            # # # # # sessions[session_id] = {"username": username, "image": None}
             sessions[session_id] = {"username": username}
             self.send_response(302)
             self.send_header('Location', '/')
@@ -95,32 +121,24 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-type", "text/html")
         self.end_headers()
         
-        # Create an HTML page with stored images and a form for uploading new images
         html_content = """
         <html>
         <body>
-            <h1>Upload Image</h1>
+            <h1>BERYLLIUM</h1>
         """
         
         session_id = self.get_session_id()
-        # # # # # user_data = sessions[session_id]
         user_name = sessions[session_id]["username"]
         
-        # # # # # if user_data["image"]:
         if user_name in images.keys():
-             # html_content += "<p>You have already uploaded an image:</p>"
-            # # # # # html_content += f'<img src="data:image/png;base64,{user_data["image"]}" alt="Your Image" style="width:100%"><br><br>'
+
             html_content += f'<img src="data:image/png;base64,{images[user_name]}" alt="Your Image" style="width:100%"><br><br>'
             
             html_content += """
             <h2>OTHER PEOPLE'S Images</h2>
             """
             
-            # # # # # for session in sessions.values():
-            # # # # #     if session["image"]:
-            # # # # #         html_content += f'<p>{session["username"]}:</p>'
-            # # # # #         html_content += f'<img src="data:image/png;base64,{session["image"]}" alt="Stored Image" style="width:100%"><br><br>'
-            for username, image in images.items():
+            for username, image in list(images.items())[::-1]:
                 if username != user_name:
                     html_content += f'<p>{username}:</p>'
                     html_content += f'<img src="data:image/png;base64,{image}" alt="Stored Image" style="width:100%"><br><br>'
@@ -174,11 +192,9 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         parsed_data = urllib.parse.parse_qs(post_data)
         
         session_id = self.get_session_id()
-        # # # # # user_data = sessions[session_id]
         user_name = sessions[session_id]["username"]
         
         # Ensure user can only upload one image
-        # # # # # if user_data["image"]:
         if user_name in images.keys():
             self.send_response(400)
             self.send_header("Content-type", "text/plain")
@@ -192,8 +208,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             # Validate if it's a proper Base64 string
             try:
                 base64.b64decode(new_image)
-                # # # # # user_data["image"] = new_image
-                images[user_name] = new_image
+                images[user_name] = new_image #TODO: this should also create a list to hold comments
             except Exception as e:
                 self.send_response(400)
                 self.send_header("Content-type", "text/plain")
@@ -214,7 +229,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
                 return cookies['session_id'].value
         return None
 
-def run(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
+def run(server_class=HTTPServer, handler_class=BerylliumHTTPRequestHandler, port=7074):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print(f'Starting server on port {port}...')
