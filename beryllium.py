@@ -151,74 +151,89 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         
         if user_name in images.keys():
 
-            html_content += f'<img src="data:image/png;base64,{images[user_name]}" alt="Your Image" style="width:100%"><br><br>'
+            html_content += f'<img src="data:image/png;base64,{images[user_name][0]["images"][0]}" alt="Your Image" style="width:50%">'
+            html_content += f'<img src="data:image/png;base64,{images[user_name][0]["images"][1]}" alt="Your Image" style="width:50%"><br><br>'
             
             html_content += """
             <h2>OTHER PEOPLE'S Images</h2>
             """
             
-            for username, image in list(images.items())[::-1]:
+            for username, user_content in list(images.items())[::-1]:
                 if username != user_name:
-                    html_content += f'<p>{username}:</p>'
-                    html_content += f'<img src="data:image/png;base64,{image}" alt="Stored Image" style="width:100%"><br><br>'
+                    for user_post in user_content:
+                        user_images = user_post["images"]
+                        face_image, away_image = user_images
+
+                        html_content += f'<p>{username}:</p>'
+                        html_content += f'<img src="data:image/png;base64,{face_image}" alt="Stored Image" style="width:50%">'
+                        html_content += f'<img src="data:image/png;base64,{away_image}" alt="Stored Image" style="width:50%"><br><br>'
         else:
             html_content += """
             <p>You must upload before you can see other people's images!</p>
             <form id="uploadForm" method="POST">
-                <input type="file" id="fileInput" accept="image/*"><br><br>
-                <input type="submit" value="Upload Image">
+                Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
+                Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
+                <input type="submit" value="Upload Images">
             </form>
             <script>
                 document.getElementById('uploadForm').onsubmit = function(event) {
                     event.preventDefault();
-                    const fileInput = document.getElementById('fileInput');
-                    const file = fileInput.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            const img = new Image();
-                            img.onload = function() {
-                                const MAX_SIZE = 600 * 1024; // 600 KB
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                let width = img.width;
-                                let height = img.height;
+                    const faceFile = document.getElementById('faceInput').files[0];
+                    const awayFile = document.getElementById('awayInput').files[0];
+                    if (faceFile && awayFile) {
+                        function resizeImage(file, callback) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const img = new Image();
+                                img.onload = function() {
+                                    const MAX_SIZE = 600 * 1024; // 600 KB
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    let width = img.width;
+                                    let height = img.height;
+                                    
+                                    let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
+                                    if (scaleFactor > 1) {
+                                        scaleFactor = 1;
+                                    }
 
-                                // Calculate the scaling factor to resize the image
-                                let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
-                                if (scaleFactor > 1) {
-                                    scaleFactor = 1;
-                                }
+                                    canvas.width = width * scaleFactor;
+                                    canvas.height = height * scaleFactor;
 
-                                canvas.width = width * scaleFactor;
-                                canvas.height = height * scaleFactor;
+                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                                canvas.toBlob(function(blob) {
-                                    const resizedReader = new FileReader();
-                                    resizedReader.onload = function(event) {
-                                        const base64String = event.target.result.split(',')[1];
-                                        const xhr = new XMLHttpRequest();
-                                        xhr.open('POST', '/', true);
-                                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                                        xhr.onload = function() {
-                                            if (xhr.status === 200) {
-                                                window.location.reload();
-                                            }
+                                    canvas.toBlob(function(blob) {
+                                        const resizedReader = new FileReader();
+                                        resizedReader.onload = function(event) {
+                                            callback(event.target.result.split(',')[1]);
                                         };
-                                        xhr.send('image=' + encodeURIComponent(base64String));
-                                    };
-                                    resizedReader.readAsDataURL(blob);
-                                }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
+                                        resizedReader.readAsDataURL(blob);
+                                    }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
+                                };
+                                img.src = e.target.result;
                             };
-                            img.src = e.target.result;
-                        };
-                        reader.readAsDataURL(file);
+                            reader.readAsDataURL(file);
+                        }
+
+                        resizeImage(faceFile, function(faceBase64) {
+                            resizeImage(awayFile, function(awayBase64) {
+                                const xhr = new XMLHttpRequest();
+                                xhr.open('POST', '/', true);
+                                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                                xhr.onload = function() {
+                                    if (xhr.status === 200) {
+                                        window.location.reload();
+                                    }
+                                };
+                                const data = 'faceImage=' + encodeURIComponent(faceBase64) + '&awayImage=' + encodeURIComponent(awayBase64);
+                                xhr.send(data);
+                            });
+                        });
                     }
                 };
             </script>
             """
+
 
         
 
@@ -250,6 +265,7 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             return
         
         # Assuming image is sent in a 'image' field
+        '''
         if 'image' in parsed_data:
             new_image = parsed_data['image'][0]
             # Validate if it's a proper Base64 string
@@ -262,7 +278,27 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write("Invalid Base64 string.".encode('utf-8'))
                 return
-        
+        '''
+        if 'faceImage' in parsed_data and 'awayImage' in parsed_data:
+            faceImage = parsed_data['faceImage'][0]
+            awayImage = parsed_data['awayImage'][0]
+            # Validate if they are proper Base64 strings
+            try:
+                base64.b64decode(faceImage)
+                base64.b64decode(awayImage)
+                if user_name not in images.keys():
+                    images[user_name] = []
+                images[user_name].append({"images": [None, None], "comments":list()})
+                images[user_name][-1]["images"][0] = faceImage
+                images[user_name][-1]["images"][1] = awayImage
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write("Invalid Base64 string.".encode('utf-8'))
+                return
+
+
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
