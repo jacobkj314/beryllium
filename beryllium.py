@@ -12,6 +12,7 @@ import os
 import http.cookies
 import json
 from datetime import datetime
+import re
 
 def check_credentials(username, password):
     return True #TODO account management
@@ -60,10 +61,28 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.handle_login_page()
 
     def handle_api(self):
+        session_id = self.get_session_id()
+        if not session_id and session_id in sessions:
+            self.send_response(401)
+            self.send_header("Content-type", "text/json")
+            self.end_headers()
+            json_content = json.dumps({})
+            self.wfile.write(json_content.encode('utf-8'))
+            return
+        
         self.send_response(200)
         self.send_header("Content-type", "text/json")
         self.end_headers()
-        json_content = json.dumps(images) #TODO: currently the api just returns a json dump of all the users images
+        
+        api_url = re.sub('^/api/?', '', self.path)
+
+        if api_url == '':
+            content = images
+        elif api_url in images.keys():
+            content = images[api_url]
+        else:
+            content = {}
+        json_content = json.dumps(content)
         self.wfile.write(json_content.encode('utf-8'))
 
     def handle_login_page(self):
@@ -157,22 +176,50 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = function(e) {
-                            const base64String = e.target.result.split(',')[1];
-                            const xhr = new XMLHttpRequest();
-                            xhr.open('POST', '/', true);
-                            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                            xhr.onload = function() {
-                                if (xhr.status === 200) {
-                                    window.location.reload();
+                            const img = new Image();
+                            img.onload = function() {
+                                const MAX_SIZE = 600 * 1024; // 600 KB
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                let width = img.width;
+                                let height = img.height;
+
+                                // Calculate the scaling factor to resize the image
+                                let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
+                                if (scaleFactor > 1) {
+                                    scaleFactor = 1;
                                 }
+
+                                canvas.width = width * scaleFactor;
+                                canvas.height = height * scaleFactor;
+
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                                canvas.toBlob(function(blob) {
+                                    const resizedReader = new FileReader();
+                                    resizedReader.onload = function(event) {
+                                        const base64String = event.target.result.split(',')[1];
+                                        const xhr = new XMLHttpRequest();
+                                        xhr.open('POST', '/', true);
+                                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                                        xhr.onload = function() {
+                                            if (xhr.status === 200) {
+                                                window.location.reload();
+                                            }
+                                        };
+                                        xhr.send('image=' + encodeURIComponent(base64String));
+                                    };
+                                    resizedReader.readAsDataURL(blob);
+                                }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
                             };
-                            xhr.send('image=' + encodeURIComponent(base64String));
+                            img.src = e.target.result;
                         };
                         reader.readAsDataURL(file);
                     }
                 };
             </script>
             """
+
         
 
         
