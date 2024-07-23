@@ -22,6 +22,8 @@ db_cursor.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, 
 db_conn.commit()
 
 def cryptohash(s:str) -> str:
+    if not isinstance(s, str):
+        s = ''
     return sha3_512(s.encode('utf-8')).hexdigest()
 def add_user(username, passhash):
     db_cursor.execute(f"INSERT INTO users (username, passhash) VALUES ('{username}', '{passhash}')")
