@@ -13,9 +13,27 @@ import http.cookies
 import json
 from datetime import datetime
 import re
+from hashlib import sha3_512
 
-def check_credentials(username, password):
+import sqlite3
+db_conn = sqlite3.connect('.db')
+db_cursor = db_conn.cursor()
+db_cursor.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, passhash TEXT)')
+db_conn.commit()
+
+def cryptohash(s:str) -> str:
+    return sha3_512(s.encode('utf-8')).hexdigest()
+def add_user(username, passhash):
+    db_cursor.execute(f"INSERT INTO users (username, passhash) VALUES ('{username}', '{passhash}')")
+    db_conn.commit()
+def validate_user(username, password):
+    if not re.fullmatch('[A-Za-z0-9_]{1,64}', username):
+        return False
+    passhash = cryptohash(password)
+    del password
+    return db_cursor.execute(f"SELECT 1 FROM users WHERE username = '{username}' AND passhash = '{passhash}' LIMIT 1").fetchone() is not None
     return True #TODO account management
+#TODO add friends table and friends table manipulation functions
 
 sessions = {} # Simple in-memory session store
 
@@ -37,6 +55,10 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         if self.path.startswith('/api'):
             self.handle_api()
             return
+        
+        if self.path == "/signup":
+            self.handle_signup_page()
+            return
 
         if self.path == '/logout':
             self.handle_logout()
@@ -53,6 +75,8 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
 
         if self.path == '/login':
             self.handle_login()
+        elif self.path == '/signup':
+            self.handle_signup()
         else:
             session_id = self.get_session_id()
             if session_id and session_id in sessions:
@@ -99,6 +123,28 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                 Password: <input type="password" name="password"><br><br>
                 <input type="submit" value="Login">
             </form>
+            <a href="/signup">No account? Sign up here!</a>
+        </body>
+        </html>
+        """
+        self.wfile.write(html_content.encode('utf-8'))
+
+    def handle_signup_page(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        
+        html_content = """
+        <html>
+        <body>
+            <h1>Sign Up</h1>
+            <form method="POST" action="/signup">
+                Username: <input type="text" name="username"><br><br>
+                Password: <input type="password" name="password"><br><br>
+                <p>By signing up, you agree that the owners/admins of this Beryllium instance may permanently retain your username and a cryptographic hash of your password. In the future, this Beryllium instance may retain a list of users whose images you would like to view and/or a list of users whom you permit to view your images. No other data shall be maintained permanently. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
+                <input type="submit" value="Sign Up">
+            </form>
+            <a href="/signup">Already have an account? Sign in here!</a>
         </body>
         </html>
         """
@@ -112,7 +158,7 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         username = parsed_data.get('username', [None])[0]
         password = parsed_data.get('password', [None])[0]
 
-        if check_credentials(username, password):
+        if validate_user(username, password):
             session_id = base64.b64encode(os.urandom(24)).decode('utf-8')
             sessions[session_id] = {"username": username}
             self.send_response(302)
@@ -123,7 +169,32 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-            self.wfile.write("Invalid credentials. Please try again.".encode('utf-8'))
+            self.wfile.write('Invalid credentials. Please <a href="/login">try again</a>.'.encode('utf-8'))
+    def handle_signup(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        parsed_data = urllib.parse.parse_qs(post_data)
+        
+        username = parsed_data.get('username', [None])[0]
+        if not re.fullmatch('[A-Za-z0-9_]{1,64}', username):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write('Invalid username. Username may only contain alphanumeric characters and underscores. Please <a href="/signup">try again</a>.'.encode('utf-8'))
+            return
+        if db_cursor.execute(f"SELECT 1 FROM users WHERE username = '{username}' LIMIT 1").fetchone() is not None:
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(f'Username "{username}" is already taken. Please <a href="/signup">try again</a>.'.encode('utf-8'))
+            return
+        password = parsed_data.get('password', [None])[0]
+        passhash = cryptohash(password)
+        del password
+        add_user(username, passhash)
+        self.send_response(302)
+        self.send_header('Location', '/')
+        self.end_headers()
 
     def handle_logout(self):
         session_id = self.get_session_id()
@@ -151,8 +222,12 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         
         if user_name in images.keys():
 
-            html_content += f'<img src="data:image/png;base64,{images[user_name][0]["images"][0]}" alt="Your Image" style="width:50%">'
-            html_content += f'<img src="data:image/png;base64,{images[user_name][0]["images"][1]}" alt="Your Image" style="width:50%"><br><br>'
+            html_content += f'<p>{user_name}:</p>'
+
+            for post in images[user_name]:
+
+                html_content += f'<img src="data:image/png;base64,{post["images"][0]}" alt="Your Image" style="width:50%">'
+                html_content += f'<img src="data:image/png;base64,{post["images"][1]}" alt="Your Image" style="width:50%"><br><br>'
             
             html_content += """
             <h2>OTHER PEOPLE'S Images</h2>
@@ -173,6 +248,9 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             <form id="uploadForm" method="POST">
                 Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
                 Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
+                
+                <p> By uploading, you agree that the owners/admins of this Beryllium instance may retain a copy of your images until tomorrow, when the server resets. Your images are never saved to permanent storage (such as a hard drive). If you would like to keep a copy of your images, be sure to save it locally or access Beryllium using an application designed to archive your images. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
+
                 <input type="submit" value="Upload Images">
             </form>
             <script>
@@ -233,11 +311,6 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                 };
             </script>
             """
-
-
-        
-
-        
         
         html_content += """
             <br><a href="/logout">Logout</a>
@@ -264,21 +337,6 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write("You have already uploaded an image.".encode('utf-8'))
             return
         
-        # Assuming image is sent in a 'image' field
-        '''
-        if 'image' in parsed_data:
-            new_image = parsed_data['image'][0]
-            # Validate if it's a proper Base64 string
-            try:
-                base64.b64decode(new_image)
-                images[user_name] = new_image #TODO: this should also create a list to hold comments
-            except Exception as e:
-                self.send_response(400)
-                self.send_header("Content-type", "text/plain")
-                self.end_headers()
-                self.wfile.write("Invalid Base64 string.".encode('utf-8'))
-                return
-        '''
         if 'faceImage' in parsed_data and 'awayImage' in parsed_data:
             faceImage = parsed_data['faceImage'][0]
             awayImage = parsed_data['awayImage'][0]
