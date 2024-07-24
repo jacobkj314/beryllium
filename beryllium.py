@@ -111,46 +111,20 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         json_content = json.dumps(content)
         self.wfile.write(json_content.encode('utf-8'))
 
-    def handle_login_page(self):
+    def serve_static_page(self, page_url):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        
-        html_content = """
-        <html>
-        <body>
-            <h1>Login</h1>
-            <form method="POST" action="/login">
-                Username: <input type="text" name="username"><br><br>
-                Password: <input type="password" name="password"><br><br>
-                <input type="submit" value="Login">
-            </form>
-            <a href="/signup">No account? Sign up here!</a>
-        </body>
-        </html>
-        """
-        self.wfile.write(html_content.encode('utf-8'))
+        with open(page_url) as page:
+            html_content = page.read()
+        self.wfile.write(html_content.encode('utf-8'))   
+
+    def handle_login_page(self):
+        self.serve_static_page("pages/login.html")
+
 
     def handle_signup_page(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        
-        html_content = """
-        <html>
-        <body>
-            <h1>Sign Up</h1>
-            <form method="POST" action="/signup">
-                Username: <input type="text" name="username"><br><br>
-                Password: <input type="password" name="password"><br><br>
-                <p>By signing up, you agree that the owners/admins of this Beryllium instance may permanently retain your username and a cryptographic hash of your password. In the future, this Beryllium instance may retain a list of users whose images you would like to view and/or a list of users whom you permit to view your images. No other data shall be maintained permanently. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
-                <input type="submit" value="Sign Up">
-            </form>
-            <a href="/signup">Already have an account? Sign in here!</a>
-        </body>
-        </html>
-        """
-        self.wfile.write(html_content.encode('utf-8'))
+        self.serve_static_page("pages/signup.html")
 
     def handle_login(self):
         content_length = int(self.headers['Content-Length'])
@@ -357,8 +331,6 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write("Invalid Base64 string.".encode('utf-8'))
                 return
-
-
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
