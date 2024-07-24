@@ -84,6 +84,8 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             self.handle_login()
         elif self.path == '/signup':
             self.handle_signup()
+        elif self.path == '/comment':
+            self.handle_comment_upload()
         else:
             session_id = self.get_session_id()
             if session_id and session_id in sessions:
@@ -193,15 +195,18 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         
         user_content  = ''
         if current_username in images.keys():
-            for post in images[current_username]:
+            for post_number, post in enumerate(images[current_username]):
                 comments_content = '<ul>'
-                for commenter_username, comment_text in post["comments"]:
-                    comments_content += f"<li>{commenter_username}: {comment_text}</li>"
+                for commenter_username, comment_timestamp, comment_text in post["comments"]:
+                    comments_content += f"<li>{commenter_username} ({comment_timestamp.strftime('%Y/%m/%d %H:%M:%S')}): {comment_text}</li>"
                 comments_content += "</ul>"
 
                 user_content += post_content.replace(
                                                         "<USERNAME/>", 
                                                         current_username
+                                           ).replace(
+                                                        "<POST_NUMBER/>", 
+                                                        str(post_number)
                                            ).replace(
                                                         "<TIMESTAMP/>",
                                                         post["timestamp"].strftime("%Y/%m/%d %H:%M:%S")
@@ -217,23 +222,26 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                                            )
 
         post_form   = ''
-        if current_username not in images.keys(): #TODO - may need a new way of determining whether this message appears
+        if current_username not in images.keys(): #TODO - may need a new way of determining whether this message appears - not can_view_page
             post_form += "<p> You must upload before viewing others' images!</p>"
-        if current_username not in images.keys(): #TODO: make more advanced logic
+        if current_username not in images.keys(): #TODO: make more advanced logic - can_post
             post_form += content("pages/form.snippet.html")
 
         other_content = ''
-        if current_username in images.keys():
+        if current_username in images.keys(): #TODO - can_view_page
             for other_username, other_posts in list(images.items())[::-1]:
                 if can_view(current_username, other_username):
-                    for post in other_posts:
+                    for post_number, post in enumerate(other_posts):
                         comments_content = '<ul>'
-                        for commenter_username, comment_text in post["comments"]:
-                            comments_content += f"<li>{commenter_username}: {comment_text}</li>"
+                        for commenter_username, comment_timestamp, comment_text in post["comments"]:
+                            comments_content += f"<li>{commenter_username} ({comment_timestamp.strftime('%Y/%m/%d %H:%M:%S')}): {comment_text}</li>"
                         comments_content += "</ul>"
                         other_content += post_content.replace(
                                                                 "<USERNAME/>", 
                                                                 other_username
+                                                    ).replace(
+                                                                "<POST_NUMBER/>", 
+                                                                str(post_number)
                                                     ).replace(
                                                                 "<TIMESTAMP/>",
                                                                 post["timestamp"].strftime("%Y/%m/%d %H:%M:%S")
@@ -259,6 +267,31 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                                                 other_content
                                   )
         return self.serve_html(html_content)
+
+    def handle_comment_upload(self):
+        global sessions
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        parsed_data = urllib.parse.parse_qs(post_data)
+        
+        session_id = self.get_session_id()
+        current_username = sessions[session_id]["username"]
+
+        if 'poster_username' in parsed_data and 'poster_post' in parsed_data and 'comment_text' in parsed_data:
+            poster_username = parsed_data["poster_username"][0]
+            poster_post = int(parsed_data["poster_post"][0])
+            comment_text = parsed_data["comment_text"][0]
+            if poster_username in images.keys() and len(images[poster_username]) > poster_post:
+                images[poster_username][poster_post]["comments"].append (
+                                                                            (
+                                                                                current_username,
+                                                                                datetime.now(),
+                                                                                comment_text
+                                                                            )
+                                                                        )
+        self.send_response(302)
+        self.send_header('Location', '/')
+        self.end_headers()
 
     def handle_image_upload(self):
         global sessions
