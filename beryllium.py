@@ -34,8 +34,13 @@ def validate_user(username, password):
     passhash = cryptohash(password)
     del password
     return db_cursor.execute(f"SELECT 1 FROM users WHERE username = '{username}' AND passhash = '{passhash}' LIMIT 1").fetchone() is not None
-    return True #TODO account management
 #TODO add friends table and friends table manipulation functions
+def can_view(viewer, poster):
+    return viewer != poster #TODO: check permissions
+
+def content(page_url):
+    with open(page_url) as page:
+        return page.read()
 
 sessions = {} # Simple in-memory session store
 
@@ -111,20 +116,16 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         json_content = json.dumps(content)
         self.wfile.write(json_content.encode('utf-8'))
 
-    def serve_static_page(self, page_url):
+    def serve_html(self, html_content):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        with open(page_url) as page:
-            html_content = page.read()
         self.wfile.write(html_content.encode('utf-8'))   
 
     def handle_login_page(self):
-        self.serve_static_page("pages/login.html")
-
-
+        self.serve_html(content("pages/login.html"))
     def handle_signup_page(self):
-        self.serve_static_page("pages/signup.html")
+        self.serve_html(content("pages/signup.html"))
 
     def handle_login(self):
         content_length = int(self.headers['Content-Length'])
@@ -181,120 +182,83 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Set-Cookie', 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT')
         self.end_headers()
 
+
     def handle_main_page(self):
-        global sessions, images
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        
-        html_content = """
-        <html>
-        <body>
-            <h1>BERYLLIUM</h1>
-        """
-        
         session_id = self.get_session_id()
-        user_name = sessions[session_id]["username"]
+        current_username = sessions[session_id]["username"]
+
+        html_content = content('pages/main.html')
         
-        if user_name in images.keys():
-
-            html_content += f'<p>{user_name}:</p>'
-
-            for post in images[user_name]:
-
-                html_content += f'<img src="data:image/png;base64,{post["images"][0]}" alt="Your Image" style="width:50%">'
-                html_content += f'<img src="data:image/png;base64,{post["images"][1]}" alt="Your Image" style="width:50%"><br><br>'
-            
-            html_content += """
-            <h2>OTHER PEOPLE'S Images</h2>
-            """
-            
-            for username, user_content in list(images.items())[::-1]:
-                if username != user_name:
-                    for user_post in user_content:
-                        user_images = user_post["images"]
-                        face_image, away_image = user_images
-
-                        html_content += f'<p>{username}:</p>'
-                        html_content += f'<img src="data:image/png;base64,{face_image}" alt="Stored Image" style="width:50%">'
-                        html_content += f'<img src="data:image/png;base64,{away_image}" alt="Stored Image" style="width:50%"><br><br>'
-        else:
-            html_content += """
-            <p>You must upload before you can see other people's images!</p>
-            <form id="uploadForm" method="POST">
-                Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
-                Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
-                
-                <p> By uploading, you agree that the owners/admins of this Beryllium instance may retain a copy of your images until tomorrow, when the server resets. Your images are never saved to permanent storage (such as a hard drive). If you would like to keep a copy of your images, be sure to save it locally or access Beryllium using an application designed to archive your images. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
-
-                <input type="submit" value="Upload Images">
-            </form>
-            <script>
-                document.getElementById('uploadForm').onsubmit = function(event) {
-                    event.preventDefault();
-                    const faceFile = document.getElementById('faceInput').files[0];
-                    const awayFile = document.getElementById('awayInput').files[0];
-                    if (faceFile && awayFile) {
-                        function resizeImage(file, callback) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                const img = new Image();
-                                img.onload = function() {
-                                    const MAX_SIZE = 600 * 1024; // 600 KB
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-                                    let width = img.width;
-                                    let height = img.height;
-                                    
-                                    let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
-                                    if (scaleFactor > 1) {
-                                        scaleFactor = 1;
-                                    }
-
-                                    canvas.width = width * scaleFactor;
-                                    canvas.height = height * scaleFactor;
-
-                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                                    canvas.toBlob(function(blob) {
-                                        const resizedReader = new FileReader();
-                                        resizedReader.onload = function(event) {
-                                            callback(event.target.result.split(',')[1]);
-                                        };
-                                        resizedReader.readAsDataURL(blob);
-                                    }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
-                                };
-                                img.src = e.target.result;
-                            };
-                            reader.readAsDataURL(file);
-                        }
-
-                        resizeImage(faceFile, function(faceBase64) {
-                            resizeImage(awayFile, function(awayBase64) {
-                                const xhr = new XMLHttpRequest();
-                                xhr.open('POST', '/', true);
-                                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                                xhr.onload = function() {
-                                    if (xhr.status === 200) {
-                                        window.location.reload();
-                                    }
-                                };
-                                const data = 'faceImage=' + encodeURIComponent(faceBase64) + '&awayImage=' + encodeURIComponent(awayBase64);
-                                xhr.send(data);
-                            });
-                        });
-                    }
-                };
-            </script>
-            """
+        post_content = content('pages/post.snippet.html')
         
-        html_content += """
-            <br><a href="/logout">Logout</a>
-        </body>
-        </html>
-        """
-        
-        self.wfile.write(html_content.encode('utf-8'))
+        user_content  = ''
+        if current_username in images.keys():
+            for post in images[current_username]:
+                comments_content = '<ul>'
+                for commenter_username, comment_text in post["comments"]:
+                    comments_content += f"<li>{commenter_username}: {comment_text}</li>"
+                comments_content += "</ul>"
+
+                user_content += post_content.replace(
+                                                        "<USERNAME/>", 
+                                                        current_username
+                                           ).replace(
+                                                        "<TIMESTAMP/>",
+                                                        post["timestamp"].strftime("%Y/%m/%d %H:%M:%S")
+                                           ).replace(
+                                                        "<FACEIMAGE/>",
+                                                        post["images"][0]
+                                           ).replace(
+                                                        "<AWAYIMAGE/>",
+                                                        post["images"][1]
+                                           ).replace(
+                                                        "<COMMENTS/>",
+                                                        comments_content
+                                           )
+
+        post_form   = ''
+        if current_username not in images.keys(): #TODO - may need a new way of determining whether this message appears
+            post_form += "<p> You must upload before viewing others' images!</p>"
+        if current_username not in images.keys(): #TODO: make more advanced logic
+            post_form += content("pages/form.snippet.html")
+
+        other_content = ''
+        if current_username in images.keys():
+            for other_username, other_posts in list(images.items())[::-1]:
+                if can_view(current_username, other_username):
+                    for post in other_posts:
+                        comments_content = '<ul>'
+                        for commenter_username, comment_text in post["comments"]:
+                            comments_content += f"<li>{commenter_username}: {comment_text}</li>"
+                        comments_content += "</ul>"
+                        other_content += post_content.replace(
+                                                                "<USERNAME/>", 
+                                                                other_username
+                                                    ).replace(
+                                                                "<TIMESTAMP/>",
+                                                                post["timestamp"].strftime("%Y/%m/%d %H:%M:%S")
+                                                    ).replace(
+                                                                "<FACEIMAGE/>",
+                                                                post["images"][0]
+                                                    ).replace(
+                                                                "<AWAYIMAGE/>",
+                                                                post["images"][1]
+                                                    ).replace(
+                                                                "<COMMENTS/>",
+                                                                comments_content
+                                                    )
+
+        html_content = html_content.replace(
+                                                "<USER_POSTS/>", 
+                                                user_content
+                                  ).replace(
+                                                "<POST_FORM/>", 
+                                                post_form
+                                  ).replace(
+                                                "<OTHER_POSTS/>", 
+                                                other_content
+                                  )
+        return self.serve_html(html_content)
 
     def handle_image_upload(self):
         global sessions
@@ -322,9 +286,16 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
                 base64.b64decode(awayImage)
                 if user_name not in images.keys():
                     images[user_name] = []
-                images[user_name].append({"images": [None, None], "comments":list()})
-                images[user_name][-1]["images"][0] = faceImage
-                images[user_name][-1]["images"][1] = awayImage
+                images[user_name].append   (
+                                            {
+                                                "images"    :   [
+                                                                    faceImage, 
+                                                                    awayImage
+                                                                ], 
+                                                "timestamp" :   datetime.now(), 
+                                                "comments"  :   list()
+                                            }
+                                        )
             except Exception as e:
                 self.send_response(400)
                 self.send_header("Content-type", "text/plain")

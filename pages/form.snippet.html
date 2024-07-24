@@ -1,0 +1,63 @@
+<form id="uploadForm" method="POST">
+    Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
+    Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
+    <input type="submit" value="Upload Images">
+</form>
+<p> By uploading, you agree that the owners/admins of this Beryllium instance may retain a copy of your images until tomorrow, when the server resets. Your images are never saved to permanent storage (such as a hard drive). If you would like to keep a copy of your images, be sure to save it locally or access Beryllium using an application designed to archive your images. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
+<script>
+    document.getElementById('uploadForm').onsubmit = function(event) {
+        event.preventDefault();
+        const faceFile = document.getElementById('faceInput').files[0];
+        const awayFile = document.getElementById('awayInput').files[0];
+        if (faceFile && awayFile) {
+            function resizeImage(file, callback) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const MAX_SIZE = 600 * 1024; // 600 KB
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
+                        if (scaleFactor > 1) {
+                            scaleFactor = 1;
+                        }
+
+                        canvas.width = width * scaleFactor;
+                        canvas.height = height * scaleFactor;
+
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        canvas.toBlob(function(blob) {
+                            const resizedReader = new FileReader();
+                            resizedReader.onload = function(event) {
+                                callback(event.target.result.split(',')[1]);
+                            };
+                            resizedReader.readAsDataURL(blob);
+                        }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            resizeImage(faceFile, function(faceBase64) {
+                resizeImage(awayFile, function(awayBase64) {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.onload = function() {
+                        if (xhr.status === 200) {
+                            window.location.reload();
+                        }
+                    };
+                    const data = 'faceImage=' + encodeURIComponent(faceBase64) + '&awayImage=' + encodeURIComponent(awayBase64);
+                    xhr.send(data);
+                });
+            });
+        }
+    };
+</script>
