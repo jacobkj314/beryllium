@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 #TODO:
 # - fill out the api under BerylliumHTTPRequestHandler
 # - move big html chunks to separate files
@@ -18,6 +20,7 @@ from hashlib import sha3_512
 import sqlite3
 db_conn = sqlite3.connect('.db')
 db_cursor = db_conn.cursor()
+#ACCOUNT STUFF
 db_cursor.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, passhash TEXT)')
 db_conn.commit()
 
@@ -26,18 +29,56 @@ def cryptohash(s:str) -> str:
         s = ''
     return sha3_512(s.encode('utf-8')).hexdigest()
 def add_user(username, passhash):
-    db_cursor.execute(f"INSERT INTO users (username, passhash) VALUES ('{username}', '{passhash}')")
+    db_cursor.execute(f"INSERT INTO users (username, passhash) VALUES (?, ?)", (username.lower(), passhash))
     db_conn.commit()
+def user_exists(username):
+    return bool(db_cursor.execute(f"SELECT 1 FROM users WHERE username = ? LIMIT 1", (username,)).fetchone() is not None)
 def validate_user(username, password):
     if not re.fullmatch('[A-Za-z0-9_]{1,64}', username):
         return False
     passhash = cryptohash(password)
     del password
-    return db_cursor.execute(f"SELECT 1 FROM users WHERE username = '{username}' AND passhash = '{passhash}' LIMIT 1").fetchone() is not None
-#TODO add friends table and friends table manipulation functions
-def can_view(viewer, poster):
-    return viewer != poster #TODO: check permissions
+    return db_cursor.execute(f"SELECT 1 FROM users WHERE username = ? AND passhash = ? LIMIT 1", (username, passhash)).fetchone() is not None
+#Friend stuff
 
+#TODO add friends table and friends table manipulation functions
+db_cursor.execute('''
+    CREATE TABLE IF NOT EXISTS views (
+        thisuser TEXT,
+        thatuser TEXT,
+        PRIMARY KEY (thisuser, thatuser)
+    )
+''')
+db_cursor.execute('''
+    CREATE TABLE IF NOT EXISTS shows (
+        thisuser TEXT,
+        thatuser TEXT,
+        PRIMARY KEY (thisuser, thatuser)
+    )
+''')
+db_conn.commit()
+def views(viewer, poster):
+    return bool(db_cursor.execute(f"SELECT 1 FROM views WHERE thisuser = ? AND thatuser = ? LIMIT 1", (viewer, poster)).fetchone())
+def shows(poster, viewer):
+    return bool(db_cursor.execute(f"SELECT 1 FROM shows WHERE thisuser = ? AND thatuser = ? LIMIT 1", (poster, viewer)).fetchone())
+def shall_display(viewer, poster):
+    this_user_views = views(viewer, poster)
+    that_user_shows = shows(poster, viewer)
+    return (viewer != poster) and bool(this_user_views and that_user_shows) 
+def update_view_setting(viewer, poster, target_view_setting):
+    if target_view_setting:
+        db_cursor.execute('INSERT OR IGNORE INTO views (thisuser, thatuser) VALUES (?, ?)', (viewer, poster))
+    else:
+        db_cursor.execute('DELETE FROM views WHERE thisuser = ? AND thatuser = ?', (viewer, poster))
+    db_conn.commit()
+def update_show_setting(viewer, poster, target_show_setting):
+    if target_show_setting:
+        db_cursor.execute('INSERT OR IGNORE INTO shows (thisuser, thatuser) VALUES (?, ?)', (poster, viewer))
+    else:
+        db_cursor.execute('DELETE FROM shows WHERE thisuser = ? AND thatuser = ?', (poster, viewer))
+    db_conn.commit()
+
+#Helper function for serving static HTML
 def content(page_url):
     with open(page_url) as page:
         return page.read()
@@ -63,6 +104,10 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             self.handle_api()
             return
         
+        if self.path.startswith('/user'):
+            self.handle_user_page()
+            return
+        
         if self.path == "/signup":
             self.handle_signup_page()
             return
@@ -86,12 +131,65 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             self.handle_signup()
         elif self.path == '/comment':
             self.handle_comment_upload()
+        elif self.path.startswith('/user'):
+            self.handle_user_connections()
         else:
             session_id = self.get_session_id()
             if session_id and session_id in sessions:
                 self.handle_image_upload()
             else:
                 self.handle_login_page()
+
+    def handle_user_page(self):
+        session_id = self.get_session_id()
+        if session_id not in sessions:
+            self.serve_html('You must be logged in to access this page')
+            return
+        current_username = sessions[session_id]["username"]
+
+        other_username = self.path.replace('?username=', '')
+        other_username = re.sub('^/user/?', '', other_username)
+        if not user_exists(other_username):
+            self.serve_html(f'The user "{other_username}" does not exist, please try again')
+            return
+        
+        html_content = content('pages/userpage.html').replace(
+                                                                "<USERNAME/>",
+                                                                other_username
+                                                    ).replace(
+                                                                "<VIEW_CHECKED/>",
+                                                                'checked' if views(current_username, other_username) else ''
+                                                    ).replace(
+                                                                "<SHOW_CHECKED/>",
+                                                                'checked' if shows(current_username, other_username) else ''
+                                                    )
+        self.serve_html(html_content)
+    def handle_user_connections(self):
+        session_id = self.get_session_id()
+        if session_id not in sessions:
+            self.serve_html('You must be logged in to access this page')
+            return
+        current_username = sessions[session_id]["username"]
+
+        other_username = re.sub('^/user/?', '', self.path)
+        if not user_exists(other_username):
+            self.serve_html(f'The user "{other_username}" does not exist, please try again')
+            return
+        
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        parsed_data = urllib.parse.parse_qs(post_data)
+        
+        view = parsed_data.get('view', [None])[0]
+        show = parsed_data.get('show', [None])[0]
+
+        update_view_setting(current_username, other_username, bool(view))
+        update_show_setting(other_username, current_username, bool(show))
+    
+        self.send_response(302)
+        self.send_header('Location', self.path)
+        self.end_headers()
+        
 
     def handle_api(self):
         session_id = self.get_session_id()
@@ -230,7 +328,7 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         other_content = ''
         if current_username in images.keys(): #TODO - can_view_page
             for other_username, other_posts in list(images.items())[::-1]:
-                if can_view(current_username, other_username):
+                if shall_display(current_username, other_username):
                     for post_number, post in enumerate(other_posts):
                         comments_content = '<ul>'
                         for commenter_username, comment_timestamp, comment_text in post["comments"]:
