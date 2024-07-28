@@ -232,7 +232,7 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         post_data = self.rfile.read(content_length).decode('utf-8')
         parsed_data = urllib.parse.parse_qs(post_data)
         
-        username = parsed_data.get('username', [None])[0]
+        username = parsed_data.get('username', [None])[0].lower()
         password = parsed_data.get('password', [None])[0]
 
         if validate_user(username, password):
