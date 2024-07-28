@@ -32,7 +32,7 @@ def add_user(username, passhash):
     db_cursor.execute(f"INSERT INTO users (username, passhash) VALUES (?, ?)", (username.lower(), passhash))
     db_conn.commit()
 def user_exists(username):
-    return bool(db_cursor.execute(f"SELECT 1 FROM users WHERE username = ? LIMIT 1", (username,)).fetchone() is not None)
+    return bool(db_cursor.execute(f"SELECT 1 FROM users WHERE username = ? LIMIT 1", (username.lower(),)).fetchone() is not None)
 def validate_user(username, password):
     if not re.fullmatch('[A-Za-z0-9_]{1,64}', username):
         return False
@@ -148,7 +148,7 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
         current_username = sessions[session_id]["username"]
 
         other_username = self.path.replace('?username=', '')
-        other_username = re.sub('^/user/?', '', other_username)
+        other_username = re.sub('^/user/?', '', other_username).lower()
         if not user_exists(other_username):
             self.serve_html(f'The user "{other_username}" does not exist, please try again')
             return
@@ -171,7 +171,7 @@ class BerylliumHTTPRequestHandler(BaseHTTPRequestHandler):
             return
         current_username = sessions[session_id]["username"]
 
-        other_username = re.sub('^/user/?', '', self.path)
+        other_username = re.sub('^/user/?', '', self.path).lower()
         if not user_exists(other_username):
             self.serve_html(f'The user "{other_username}" does not exist, please try again')
             return
