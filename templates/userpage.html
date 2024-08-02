@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <h1>{{ other_user.username }}</h1>
+
+        <form action="/user/" method="POST">
+            <label for="viewbox">
+                <input type="hidden" name="username" value="{{ other_user.username }}">
+                <input type="checkbox" id="viewbox" name="view" value="Do I want to view this user's posts?" {{ 'checked' if views(current_user, other_user) else '' }}>
+                Do I want to view this user's posts?
+            </label><br>
+            <label for="showbox">
+                <input type="checkbox" id="showbox" name="show" value="Do I want to show this user my posts?" {{ 'checked' if shows(current_user, other_user) else '' }}>
+                Do I want to show this user my posts?
+            </label><br>
+            <input type="submit" value="Update">
+        </form>
+
+        <a href="/">Home</a>
+
+    </body>
+</html>

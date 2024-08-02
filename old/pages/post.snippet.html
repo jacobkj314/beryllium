@@ -1,0 +1,10 @@
+<p><a href="/user/<USERNAME/>"><USERNAME/></a> (<TIMESTAMP/>):</p>
+<img src="data:image/png;base64,<FACEIMAGE/>" alt="Face Image of <USERNAME/>" style="width:50%"><img src="data:image/png;base64,<AWAYIMAGE/>" alt="Away Image of <USERNAME/>" style="width:50%">
+<COMMENTS/>
+<form action="/comment" method="POST">
+    <input type="hidden" name="poster_username" value="<USERNAME/>">
+    <input type="hidden" name="poster_post" value="<POST_NUMBER/>">
+    <input type="text" id="<USERNAME/>_<POST_NUMBER/>_comment_text" name="comment_text" required>
+    <button type="submit">Post Comment</button>
+</form>
+<br/>

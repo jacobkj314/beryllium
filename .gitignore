@@ -1,1 +1,4 @@
+.key
 .db
+instance
+migrations

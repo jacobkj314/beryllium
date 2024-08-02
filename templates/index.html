@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <h1>BERYLLIUM</h1>
+
+        <form action="/user/" method="GET">
+            <label for="textbox">Enter someone's username to add them as a friend and see their posts</label>
+            <input type="text" id="textbox" name="username">
+            <input type="submit" value="Submit">
+        </form>
+
+        {% if current_user.username in images.keys() %}
+            {% for post in images[current_user.username] %}
+                <p>{{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}:</p>
+                <img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ current_user.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
+                <ul>
+                    {% for commenter_username, comment_timestamp, comment_text in post['comments'] %}
+                        <li>{{ commenter_username }} ({{ comment_timestamp.strftime('%Y/%m/%d %H:%M:%S') }}): {{ comment_text }}</li>
+                    {% endfor %}
+                </ul>
+                <form action="/comment" method="POST">
+                    <input type="hidden" name="poster_username" value="<USERNAME/>">
+                    <input type="hidden" name="poster_post" value="<POST_NUMBER/>">
+                    <input type="text" id="<USERNAME/>_<POST_NUMBER/>_comment_text" name="comment_text" required>
+                    <button type="submit">Post Comment</button>
+                </form>
+                <br/>
+            {% endfor %}
+        {% endif %}
+
+        {% if current_user.can_post %}
+            <form id="uploadForm" method="POST">
+                Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
+                Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
+                <input type="submit" value="Upload Images">
+            </form>
+            <p> By uploading, you agree that the owners/admins of this Beryllium instance may retain a copy of your images until tomorrow, when the server resets. Your images are never saved to permanent storage (such as a hard drive). If you would like to keep a copy of your images, be sure to save it locally or access Beryllium using an application designed to archive your images. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
+            <script>
+                document.getElementById('uploadForm').onsubmit = function(event) {
+                    event.preventDefault();
+                    const faceFile = document.getElementById('faceInput').files[0];
+                    const awayFile = document.getElementById('awayInput').files[0];
+                    if (faceFile && awayFile) {
+                        function resizeImage(file, callback) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                const img = new Image();
+                                img.onload = function() {
+                                    const MAX_SIZE = 600 * 1024; // 600 KB
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    let width = img.width;
+                                    let height = img.height;
+
+                                    let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
+                                    if (scaleFactor > 1) {
+                                        scaleFactor = 1;
+                                    }
+                                
+                                    canvas.width = width * scaleFactor;
+                                    canvas.height = height * scaleFactor;
+                                
+                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                
+                                    canvas.toBlob(function(blob) {
+                                        const resizedReader = new FileReader();
+                                        resizedReader.onload = function(event) {
+                                            callback(event.target.result.split(',')[1]);
+                                        };
+                                        resizedReader.readAsDataURL(blob);
+                                    }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
+                                };
+                                img.src = e.target.result;
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    
+                        resizeImage(faceFile, function(faceBase64) {
+                            resizeImage(awayFile, function(awayBase64) {
+                                const xhr = new XMLHttpRequest();
+                                xhr.open('POST', '/', true);
+                                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                                xhr.onload = function() {
+                                    if (xhr.status === 200) {
+                                        window.location.reload();
+                                    }
+                                };
+                                const data = 'faceImage=' + encodeURIComponent(faceBase64) + '&awayImage=' + encodeURIComponent(awayBase64);
+                                xhr.send(data);
+                            });
+                        });
+                    }
+                };
+            </script>
+        {% endif %}
+
+        {% if current_user.can_view_posts %}
+            {% for other_user in current_user.users_to_view %}
+                {% if other_user.username in images.keys() %}
+                    {% for post in images[other_user.username] %}
+                        <p><a href="/user/?username={{ other_user.username }}">{{ other_user.username }}</a> ({{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}):</p>
+                        <img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ current_user.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
+                        <ul>
+                            {% for commenter_username, comment_timestamp, comment_text in post['comments'] %}
+                                <li>{{ commenter_username }} ({{ comment_timestamp.strftime('%Y/%m/%d %H:%M:%S') }}): {{ comment_text }}</li>
+                            {% endfor %}
+                        </ul>
+                        <form action="/comment" method="POST">
+                            <input type="hidden" name="poster_username" value="<USERNAME/>">
+                            <input type="hidden" name="poster_post" value="<POST_NUMBER/>">
+                            <input type="text" id="<USERNAME/>_<POST_NUMBER/>_comment_text" name="comment_text" required>
+                            <button type="submit">Post Comment</button>
+                        </form>
+                        <br/>
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p>You must post before viewing others' images!</p>
+        {% endif %}
+        <!--
+
+            <POST_FORM/>
+            <OTHER_POSTS/>
+        -->
+
+        <br><a href="/logout">Logout</a>
+    </body>
+</html>
