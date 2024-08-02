@@ -19,9 +19,9 @@
                     {% endfor %}
                 </ul>
                 <form action="/comment" method="POST">
-                    <input type="hidden" name="poster_username" value="<USERNAME/>">
-                    <input type="hidden" name="poster_post" value="<POST_NUMBER/>">
-                    <input type="text" id="<USERNAME/>_<POST_NUMBER/>_comment_text" name="comment_text" required>
+                    <input type="hidden" name="poster_username" value="{{ current_user.username }}">
+                    <input type="hidden" name="poster_post" value="{{ loop.index0 }}">
+                    <input type="text" id="{{ current_user.username }}_{{ loop.index0 }}_comment_text" name="comment_text" required>
                     <button type="submit">Post Comment</button>
                 </form>
                 <br/>
@@ -106,9 +106,9 @@
                             {% endfor %}
                         </ul>
                         <form action="/comment" method="POST">
-                            <input type="hidden" name="poster_username" value="<USERNAME/>">
-                            <input type="hidden" name="poster_post" value="<POST_NUMBER/>">
-                            <input type="text" id="<USERNAME/>_<POST_NUMBER/>_comment_text" name="comment_text" required>
+                            <input type="hidden" name="poster_username" value="{{ other_user.username }}">
+                            <input type="hidden" name="poster_post" value="{{ loop.index0 }}">
+                            <input type="text" id="{{ other_user.username }}_{{ loop.index0 }}_comment_text" name="comment_text" required>
                             <button type="submit">Post Comment</button>
                         </form>
                         <br/>
