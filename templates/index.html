@@ -4,115 +4,71 @@
         <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
         <script type="text/javascript" charset="utf-8">
             var socket = io();
+            //this allows the server to send posts to the client
             socket.on('add_post', function(data) {
-                document.getElementById(data.user == '{{ current_user.username }}' ? "current_user_content" : "other_user_content").insertAdjacentHTML('afterbegin', data.new_post);
+                poster = data.poster;
+                post_number = data.post_number;
+                new_post = data.new_post;
+                //insert post
+                document.getElementById(poster == '{{ current_user.username }}' ? "current_user_content" : "other_user_content").insertAdjacentHTML('afterbegin', new_post);
+
+                //activate comment box
+                /*
+                document.getElementById("user_" + poster + "_post_" + post_number + "_comment_form").onsubmit = function(event) {
+                    event.preventDefault();
+                    comment_text = document.getElementById(poster + "_" + post_number + "_comment_text").value;
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/comment/', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.onload = function(){};
+                    const data = 'poster=' + encodeURIComponent(poster) + '&post_number=' + encodeURIComponent(post_number) + '&comment_text=' + encodeURIComponent(comment_text);
+                    xhr.send(data)
+                };
+                */
+               
+
+                (function(currentPoster, currentPostNumber) {
+                    document.getElementById("user_" + currentPoster + "_post_" + currentPostNumber + "_comment_form").onsubmit = function(event) {
+                        event.preventDefault();
+                        const comment_text = document.getElementById(currentPoster + "_" + currentPostNumber + "_comment_text").value;
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/comment/', true);
+                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                        xhr.onload = function(){};
+                        const data = 'poster=' + encodeURIComponent(currentPoster) + '&post_number=' + encodeURIComponent(currentPostNumber) + '&comment_text=' + encodeURIComponent(comment_text);
+                        xhr.send(data);
+                    };
+                })(poster, post_number);
+
+
+
+
             });
+
+            //this allows the server to send individual clients
             socket.on('add_comment', function(data) {
-                document.getElementById('user_' + data.poster + '_post_' + data.post_number + '_comments').insertAdjacentHTML('beforeend', data.new_comment);
+                console.log(data.poster + ' ' + data.post_number)
+                comment_section_id = 'user_' + data.poster + '_post_' + data.post_number + '_comments';
+                document.getElementById(comment_section_id).insertAdjacentHTML('beforeend', data.new_comment);
             });
         </script>
     </head>
     <body>
         <h1>BERYLLIUM</h1>
 
-        <form action="/user/" method="GET">
-            <label for="textbox">Enter someone's username to add them as a friend and see their posts</label>
-            <input type="text" id="textbox" name="username">
-            <input type="submit" value="Submit">
-        </form>
+        {% include 'friend_search.html' %}
 
-        <div id="current_user_content">
-            {% if current_user.username in images.keys() %}
-                {% for post in images[current_user.username] %}
-                    {% with relevant_user=current_user, post_number=loop.index0 %}
-                        {% include 'post.html' %}
-                    {% endwith %}
-                {% endfor %}
+        <div id="current_user_content"></div>
+
+        <div id="image_upload">
+            {% if current_user.can_post %}
+                {% include 'form.html' %}
             {% endif %}
         </div>
 
 
-        {% if current_user.can_post %}
-            <form id="uploadForm" method="POST">
-                Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
-                Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
-                <input type="submit" value="Upload Images">
-            </form>
-            <p> By uploading, you agree that the owners/admins of this Beryllium instance may retain a copy of your images until tomorrow, when the server resets. Your images are never saved to permanent storage (such as a hard drive). If you would like to keep a copy of your images, be sure to save it locally or access Beryllium using an application designed to archive your images. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
-            <script>
-                document.getElementById('uploadForm').onsubmit = function(event) {
-                    event.preventDefault();
-                    const faceFile = document.getElementById('faceInput').files[0];
-                    const awayFile = document.getElementById('awayInput').files[0];
-                    if (faceFile && awayFile) {
-                        function resizeImage(file, callback) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                const img = new Image();
-                                img.onload = function() {
-                                    const MAX_SIZE = 600 * 1024; // 600 KB
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-                                    let width = img.width;
-                                    let height = img.height;
-
-                                    let scaleFactor = Math.sqrt(MAX_SIZE / file.size);
-                                    if (scaleFactor > 1) {
-                                        scaleFactor = 1;
-                                    }
-                                
-                                    canvas.width = width * scaleFactor;
-                                    canvas.height = height * scaleFactor;
-                                
-                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                
-                                    canvas.toBlob(function(blob) {
-                                        const resizedReader = new FileReader();
-                                        resizedReader.onload = function(event) {
-                                            callback(event.target.result.split(',')[1]);
-                                        };
-                                        resizedReader.readAsDataURL(blob);
-                                    }, 'image/jpeg', 0.85); // Adjust quality here (0.85 is just an example)
-                                };
-                                img.src = e.target.result;
-                            };
-                            reader.readAsDataURL(file);
-                        }
-                    
-                        resizeImage(faceFile, function(faceBase64) {
-                            resizeImage(awayFile, function(awayBase64) {
-                                const xhr = new XMLHttpRequest();
-                                xhr.open('POST', '/', true);
-                                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-                                xhr.onload = function() {
-                                    if (xhr.status === 200) {
-                                        // window.location.reload();
-                                    }
-                                };
-                                const data = 'faceImage=' + encodeURIComponent(faceBase64) + '&awayImage=' + encodeURIComponent(awayBase64);
-                                xhr.send(data);
-                            });
-                        });
-                    }
-                };
-            </script>
-        {% endif %}
-
-
         <div id="other_user_content">
-            {% if current_user.can_view_posts %}
-                {% for other_user in current_user.users_to_view %}
-                    {% if other_user.username in images.keys() %}
-                        {% for post in images[other_user.username] %}
-                            {% with relevant_user=other_user, post_number=loop.index0 %}
-                                {% include 'post.html' %}
-                            {% endwith %}                        
-                        {% endfor %}
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                <p>You must post before viewing others' images!</p>
-            {% endif %}
+            <p>You must post before viewing others' images!</p>
         </div>
 
         <br><a href="/logout">Logout</a>

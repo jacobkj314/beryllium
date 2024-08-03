@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, render_template, render_template_string, url_for, flash, get_flashed_messages
+from flask import Flask, request, redirect, render_template, render_template_string, url_for, flash, get_flashed_messages, jsonify
 from flask_socketio import SocketIO, join_room, leave_room
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
@@ -26,6 +26,7 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'handle_login'
 
 socketio = SocketIO(app)
+user_socket_map = dict()
 
 # # # DATABASE STUFF
 
@@ -43,6 +44,34 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    @property
+    def sid(self):
+        return user_socket_map[self.id]
+    def receive_content(self):
+        if self.can_view_posts:
+            for user in current_user.users_to_view:
+                join_room(user.username, namespace='/', sid=current_user.sid)
+                if user.username in IMAGES.keys():
+                    poster = user
+                    for post_number, post in enumerate(IMAGES[poster.username]):
+                        current_user.send   (
+                                                'add_post',
+                                                {
+                                                    'poster':poster.username,
+                                                    'post_number':post_number,
+                                                    'new_post':render_template('post.html', poster=poster, post=post, post_number=post_number)
+                                                }
+                                            )
+
+
+
+    def send(self, event, args_dict):
+        socketio.emit   (
+                            event,
+                            args_dict,
+                            to=self.sid
+                        )
+
     @property
     def can_view_posts(self):
         return (self.username in IMAGES.keys())
@@ -62,7 +91,7 @@ class User(UserMixin, db.Model):
                             ).filter(
                                 ViewSetting.this_user_id == self.id
                             ).all()
-        return [load_user(result[0]) for result in results]
+        return [self, *[load_user(result[0]) for result in results]]
 
 
 @login_manager.user_loader
@@ -132,8 +161,6 @@ def update_show_setting(poster:User, viewer:User, target_show_setting:bool):
 last_reset_time = datetime.now()
 @app.before_request
 def check_reset():
-    print(request)
-
     global last_reset_time, IMAGES
     now = datetime.now()
     intended_last_reset_time = datetime(now.year, now.month, now.day, 12, 0, 0, 0) #TODO : have a better and more varied function to determine when the server resets
@@ -165,15 +192,23 @@ def main():
                 )
         IMAGES[current_user.username].append(post)
 
+        #send new post to everyone who can see current_user
         socketio.emit   (
                             'add_post',
                             {
-                                'user':current_user.username,
+                                'poster':current_user.username,
                                 'post_number':len(IMAGES[current_user.username])-1,
-                                'new_post':render_template('post.html', relevant_user=current_user, post=post, post_number=len(current_user_posts)-1)
+                                'new_post':render_template('post.html', poster=current_user, post=post, post_number=len(current_user_posts)-1)
                             },
                             room = current_user.username
                         )
+        
+        #let user receive existing posts and subscribe them to receive future content
+        current_user.receive_content()
+        
+
+
+
     return redirect(url_for('main'))
 
 @app.get('/api/')
@@ -232,16 +267,19 @@ def handle_logout():
 @app.post('/comment/')
 @login_required
 def handle_comment():
-    poster_username = request.form['poster_username']
-    poster_post     = request.form['poster_post']
+    print('RECEIVING COMMENT!')
+    poster = request.form['poster']
+    post_number     = request.form['post_number']
     comment_text    = request.form['comment_text']
     comment_timestamp = datetime.now()
 
     print(request.form)
 
-    if not (poster_username in IMAGES.keys() and len(IMAGES[poster_username]) > int(poster_post)):
+    if not (poster in IMAGES.keys() and len(IMAGES[poster]) > int(post_number)):
         return '' #TODO - probably should be a 404 error I think
     #TODO - should verify that current_user views() poster's posts
+
+    print(poster, post_number)
 
     new_comment =   (
                         current_user,
@@ -249,26 +287,31 @@ def handle_comment():
                         comment_text
                     )
 
-    IMAGES[poster_username][int(poster_post)]["comments"].append(new_comment)
+    IMAGES[poster][int(post_number)]["comments"].append(new_comment)
 
     socketio.emit   (
                             'add_comment',
                             {
-                                'poster':current_user.username,
-                                'post_number':poster_post,
+                                'poster':poster,
+                                'post_number':post_number,
                                 'new_comment':render_template('comment.html', commenter=current_user, comment_timestamp=comment_timestamp, comment_text=comment_text)
                             },
-                            room = poster_username
+                            room = poster
                         )
     
-    return 'success'
+    return jsonify(success=True)
+
+
+
+
 
 # # # SOCKET.IO
 @socketio.on('connect')
 def handle_connect():
-    join_room(current_user.username)
-    for other_user in current_user.users_to_view:
-        join_room(other_user.username)
+    user_socket_map[current_user.id] = request.sid
+    current_user.receive_content()
+
+
 @socketio.on('disconnect')
 def handle_disconnect():
     for other_user in current_user.users_to_view:
@@ -276,4 +319,4 @@ def handle_disconnect():
     leave_room(current_user.username)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

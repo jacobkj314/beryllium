@@ -1,27 +1,21 @@
-<p><a href="/user/?username={{ relevant_user.username }}">{{ relevant_user.username }}</a> ({{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}):</p>
-<img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ relevant_user.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
-<ul id="user_{{ relevant_user.username }}_post_{{ post_number }}_comments">
+<p><a href="/user/?username={{ poster.username }}">{{ poster.username }}</a> ({{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}):</p>
+<img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ poster.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
+<ul id="user_{{ poster.username }}_post_{{ post_number }}_comments">
     {% for commenter, comment_timestamp, comment_text in post['comments'] %}
         {% include 'comment.html' %}
     {% endfor %}
 </ul>
-<p>{{ post_number }}</p>
-<form id="user_{{ relevant_user.username }}_post_{{ post_number }}_comment_form" action="/comment/" method="POST">
-    <input type="hidden" name="poster_username" value="{{ current_user.username }}">
-    <input type="hidden" name="poster_post" value="{{ post_number }}">
-    <input type="text" id="{{ relevant_user.username }}_{{ post_number }}_comment_text" name="comment_text" required>
+
+
+
+
+
+<form id="user_{{ poster.username }}_post_{{ post_number }}_comment_form" method="POST">
+    <input type="text" id="{{ poster.username }}_{{ post_number }}_comment_text" name="comment_text" required>
     <button type="submit">Post Comment</button>
 </form>
-<script>
-    function submit_user_{{ relevant_user.username }}_post_{{ post_number }}_comment_form(event) {
-        event.preventDefault();
 
-        var form = event.target;
-        var formData = new FormData(form);
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", form.action, true);
-        xhr.send(formData);
-    }
-    document.getElementById("user_{{ relevant_user.username }}_post_{{ post_number }}_comment_form").onsubmit = submit_user_{{ relevant_user.username }}_post_{{ post_number }}_comment_form;
-</script>
+
+
+
 <br/>
