@@ -1,5 +1,5 @@
 from flask import Flask, request, redirect, render_template, render_template_string, url_for, flash, get_flashed_messages
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, leave_room
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
@@ -10,8 +10,7 @@ import utils
 from datetime import datetime
 
 # # # MEMORY SETUP
-images = dict()
-
+from IMAGES import IMAGES
 
 # # # FLASK SETUP
 app = Flask(__name__)
@@ -19,11 +18,9 @@ app.config['SECRET_KEY'] = utils.get_secret_key()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///.db' 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app.add_template_global(name='images', f=images)
+app.add_template_global(name='images', f=IMAGES)
 
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'handle_login'
@@ -31,6 +28,9 @@ login_manager.login_view = 'handle_login'
 socketio = SocketIO(app)
 
 # # # DATABASE STUFF
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -45,10 +45,10 @@ class User(UserMixin, db.Model):
     
     @property
     def can_view_posts(self):
-        return (self.username in images.keys())
+        return (self.username in IMAGES.keys())
     @property
     def can_post(self):
-        return (self.username not in images.keys())
+        return (self.username not in IMAGES.keys())
     
     @property
     def users_to_view(self):
@@ -132,33 +132,48 @@ def update_show_setting(poster:User, viewer:User, target_show_setting:bool):
 last_reset_time = datetime.now()
 @app.before_request
 def check_reset():
-    global last_reset_time, images
+    print(request)
+
+    global last_reset_time, IMAGES
     now = datetime.now()
     intended_last_reset_time = datetime(now.year, now.month, now.day, 12, 0, 0, 0) #TODO : have a better and more varied function to determine when the server resets
     if now > intended_last_reset_time and not last_reset_time > intended_last_reset_time: 
-        images = {}
+        IMAGES = {}
         last_reset_time = now
 
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def main():
-    global images
+    global IMAGES
     if request.method == 'GET':
         return render_template('index.html')
     if current_user.can_post:
         faceImage = request.form['faceImage']
         awayImage = request.form['awayImage']
-        images[current_user.username] = []
-        images[current_user.username].append(
-                                                {
-                                                    "images"    :   [
-                                                                        faceImage, 
-                                                                        awayImage
-                                                                    ], 
-                                                    "timestamp" :   datetime.now(), 
-                                                    "comments"  :   list()
-                                                }
-                                            )
+        if current_user.username not in IMAGES.keys():
+            IMAGES[current_user.username] = []
+        current_user_posts = IMAGES[current_user.username]
+        post =  (
+                    {
+                        "images"    :   [
+                                            faceImage, 
+                                            awayImage
+                                        ], 
+                        "timestamp" :   datetime.now(), 
+                        "comments"  :   list()
+                    }
+                )
+        IMAGES[current_user.username].append(post)
+
+        socketio.emit   (
+                            'add_post',
+                            {
+                                'user':current_user.username,
+                                'post_number':len(IMAGES[current_user.username])-1,
+                                'new_post':render_template('post.html', relevant_user=current_user, post=post, post_number=len(current_user_posts)-1)
+                            },
+                            room = current_user.username
+                        )
     return redirect(url_for('main'))
 
 @app.get('/api/')
@@ -217,7 +232,48 @@ def handle_logout():
 @app.post('/comment/')
 @login_required
 def handle_comment():
-    return '' #TODO
+    poster_username = request.form['poster_username']
+    poster_post     = request.form['poster_post']
+    comment_text    = request.form['comment_text']
+    comment_timestamp = datetime.now()
+
+    print(request.form)
+
+    if not (poster_username in IMAGES.keys() and len(IMAGES[poster_username]) > int(poster_post)):
+        return '' #TODO - probably should be a 404 error I think
+    #TODO - should verify that current_user views() poster's posts
+
+    new_comment =   (
+                        current_user,
+                        comment_timestamp,
+                        comment_text
+                    )
+
+    IMAGES[poster_username][int(poster_post)]["comments"].append(new_comment)
+
+    socketio.emit   (
+                            'add_comment',
+                            {
+                                'poster':current_user.username,
+                                'post_number':poster_post,
+                                'new_comment':render_template('comment.html', commenter=current_user, comment_timestamp=comment_timestamp, comment_text=comment_text)
+                            },
+                            room = poster_username
+                        )
+    
+    return 'success'
+
+# # # SOCKET.IO
+@socketio.on('connect')
+def handle_connect():
+    join_room(current_user.username)
+    for other_user in current_user.users_to_view:
+        join_room(other_user.username)
+@socketio.on('disconnect')
+def handle_disconnect():
+    for other_user in current_user.users_to_view:
+        leave_room(other_user.username)
+    leave_room(current_user.username)
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

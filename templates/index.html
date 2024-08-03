@@ -1,5 +1,17 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+        <script type="text/javascript" charset="utf-8">
+            var socket = io();
+            socket.on('add_post', function(data) {
+                document.getElementById(data.user == '{{ current_user.username }}' ? "current_user_content" : "other_user_content").insertAdjacentHTML('afterbegin', data.new_post);
+            });
+            socket.on('add_comment', function(data) {
+                document.getElementById('user_' + data.poster + '_post_' + data.post_number + '_comments').insertAdjacentHTML('beforeend', data.new_comment);
+            });
+        </script>
+    </head>
     <body>
         <h1>BERYLLIUM</h1>
 
@@ -9,24 +21,16 @@
             <input type="submit" value="Submit">
         </form>
 
-        {% if current_user.username in images.keys() %}
-            {% for post in images[current_user.username] %}
-                <p>{{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}:</p>
-                <img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ current_user.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
-                <ul>
-                    {% for commenter_username, comment_timestamp, comment_text in post['comments'] %}
-                        <li>{{ commenter_username }} ({{ comment_timestamp.strftime('%Y/%m/%d %H:%M:%S') }}): {{ comment_text }}</li>
-                    {% endfor %}
-                </ul>
-                <form action="/comment" method="POST">
-                    <input type="hidden" name="poster_username" value="{{ current_user.username }}">
-                    <input type="hidden" name="poster_post" value="{{ loop.index0 }}">
-                    <input type="text" id="{{ current_user.username }}_{{ loop.index0 }}_comment_text" name="comment_text" required>
-                    <button type="submit">Post Comment</button>
-                </form>
-                <br/>
-            {% endfor %}
-        {% endif %}
+        <div id="current_user_content">
+            {% if current_user.username in images.keys() %}
+                {% for post in images[current_user.username] %}
+                    {% with relevant_user=current_user, post_number=loop.index0 %}
+                        {% include 'post.html' %}
+                    {% endwith %}
+                {% endfor %}
+            {% endif %}
+        </div>
+
 
         {% if current_user.can_post %}
             <form id="uploadForm" method="POST">
@@ -82,7 +86,7 @@
                                 xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
                                 xhr.onload = function() {
                                     if (xhr.status === 200) {
-                                        window.location.reload();
+                                        // window.location.reload();
                                     }
                                 };
                                 const data = 'faceImage=' + encodeURIComponent(faceBase64) + '&awayImage=' + encodeURIComponent(awayBase64);
@@ -94,35 +98,22 @@
             </script>
         {% endif %}
 
-        {% if current_user.can_view_posts %}
-            {% for other_user in current_user.users_to_view %}
-                {% if other_user.username in images.keys() %}
-                    {% for post in images[other_user.username] %}
-                        <p><a href="/user/?username={{ other_user.username }}">{{ other_user.username }}</a> ({{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}):</p>
-                        <img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ current_user.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
-                        <ul>
-                            {% for commenter_username, comment_timestamp, comment_text in post['comments'] %}
-                                <li>{{ commenter_username }} ({{ comment_timestamp.strftime('%Y/%m/%d %H:%M:%S') }}): {{ comment_text }}</li>
-                            {% endfor %}
-                        </ul>
-                        <form action="/comment" method="POST">
-                            <input type="hidden" name="poster_username" value="{{ other_user.username }}">
-                            <input type="hidden" name="poster_post" value="{{ loop.index0 }}">
-                            <input type="text" id="{{ other_user.username }}_{{ loop.index0 }}_comment_text" name="comment_text" required>
-                            <button type="submit">Post Comment</button>
-                        </form>
-                        <br/>
-                    {% endfor %}
-                {% endif %}
-            {% endfor %}
-        {% else %}
-            <p>You must post before viewing others' images!</p>
-        {% endif %}
-        <!--
 
-            <POST_FORM/>
-            <OTHER_POSTS/>
-        -->
+        <div id="other_user_content">
+            {% if current_user.can_view_posts %}
+                {% for other_user in current_user.users_to_view %}
+                    {% if other_user.username in images.keys() %}
+                        {% for post in images[other_user.username] %}
+                            {% with relevant_user=other_user, post_number=loop.index0 %}
+                                {% include 'post.html' %}
+                            {% endwith %}                        
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p>You must post before viewing others' images!</p>
+            {% endif %}
+        </div>
 
         <br><a href="/logout">Logout</a>
     </body>

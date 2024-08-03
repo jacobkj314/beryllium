@@ -2,3 +2,4 @@
 .db
 instance
 migrations
+__pycache__
