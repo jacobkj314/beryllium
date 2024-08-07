@@ -1,21 +1,23 @@
-<p><a href="/user/?username={{ poster.username }}">{{ poster.username }}</a> ({{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}):</p>
-<img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ poster.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
-<ul id="user_{{ poster.username }}_post_{{ post_number }}_comments">
-    {% for commenter, comment_timestamp, comment_text in post['comments'] %}
-        {% include 'comment.html' %}
-    {% endfor %}
-</ul>
+<div type="post" id="post_{{ poster.username }}_{{ post_number }}">
+    <p><a href="/user/?username={{ poster.username }}">{{ poster.username }}</a> ({{ post["timestamp"].strftime("%Y/%m/%d %H:%M:%S") }}):</p>
+    <img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ poster.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
+    <ul id="user_{{ poster.username }}_post_{{ post_number }}_comments">
+        {% for commenter, comment_timestamp, comment_text in post['comments'] %}
+            {% include 'comment.html' %}
+        {% endfor %}
+    </ul>
 
 
 
 
 
-<form id="user_{{ poster.username }}_post_{{ post_number }}_comment_form" method="POST">
-    <input type="text" id="{{ poster.username }}_{{ post_number }}_comment_text" name="comment_text" required>
-    <button type="submit">Post Comment</button>
-</form>
+    <form id="user_{{ poster.username }}_post_{{ post_number }}_comment_form" method="POST">
+        <input type="text" id="{{ poster.username }}_{{ post_number }}_comment_text" name="comment_text" required>
+        <button type="submit">Post Comment</button>
+    </form>
 
 
 
 
-<br/>
+    <br/>
+</div>

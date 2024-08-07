@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, render_template, render_template_string, url_for, flash, get_flashed_messages, jsonify
+from flask import Flask, request, redirect, render_template, render_template_string, url_for, flash, get_flashed_messages, jsonify, send_from_directory
 from flask_socketio import SocketIO, join_room, leave_room
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
@@ -302,6 +302,14 @@ def handle_comment():
     return jsonify(success=True)
 
 
+@app.get('/main.js')
+def get_js():
+    return render_template('main.js')
+
+
+@app.route('/settings/')
+def settings():
+    return current_user.username
 
 
 
