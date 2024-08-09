@@ -25,7 +25,7 @@ app.add_template_global(name='images', f=IMAGES)
 login_manager = LoginManager(app)
 login_manager.login_view = 'handle_login'
 
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode="gevent")
 user_socket_map = dict()
 
 # # # DATABASE STUFF
@@ -59,7 +59,6 @@ class User(UserMixin, db.Model):
                 if user.username in IMAGES.keys():
                     poster = user
                     for post_number, post in enumerate(IMAGES[poster.username]):
-                        print("comments", post["comments"])
                         current_user.send   (
                                                 'add_post',
                                                 {
@@ -309,20 +308,15 @@ def handle_logout():
 @app.post('/comment/')
 @login_required
 def handle_comment():
-    print('RECEIVING COMMENT!')
     poster = request.form['poster']
     commenter = load_user(current_user.id)
     post_number     = request.form['post_number']
     comment_text    = request.form['comment_text']
     comment_timestamp = datetime.now()
 
-    print(request.form)
-
     if not (poster in IMAGES.keys() and len(IMAGES[poster]) > int(post_number)):
         return '' #TODO - probably should be a 404 error I think
     #TODO - should verify that current_user views() poster's posts
-
-    print(poster, post_number)
 
     new_comment =   (
                         commenter,
@@ -370,4 +364,4 @@ def handle_disconnect():
     leave_room(current_user.username)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=7074)
+    socketio.run(app, host='0.0.0.0', port=7074)
