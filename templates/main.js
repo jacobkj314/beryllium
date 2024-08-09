@@ -7,6 +7,7 @@ socket.on('add_post', function(data) {
     new_post = data.new_post;
 
     console.log('new post by ' + poster + ', current user is {{ current_user.username }}')
+
     
     post_id = "post_" + poster + "_" + post_number
     if(! document.getElementById(post_id)){ //check whether this post already exists
@@ -32,6 +33,7 @@ socket.on('add_post', function(data) {
 //this allows the server to send individual comments
 socket.on('add_comment', function(data) {
     console.log(data.poster + ' ' + data.post_number)
+    console.log(data.new_comment)
     comment_section_id = 'user_' + data.poster + '_post_' + data.post_number + '_comments';
     document.getElementById(comment_section_id).insertAdjacentHTML('beforeend', data.new_comment);
 });

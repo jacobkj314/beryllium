@@ -38,6 +38,11 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(150), nullable=False)
 
+    def __str__(self):
+        return f'<User {self.username}>'
+    def __repr__(self):
+        return f'<User {self.username}>'
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -54,6 +59,7 @@ class User(UserMixin, db.Model):
                 if user.username in IMAGES.keys():
                     poster = user
                     for post_number, post in enumerate(IMAGES[poster.username]):
+                        print("comments", post["comments"])
                         current_user.send   (
                                                 'add_post',
                                                 {
@@ -92,6 +98,39 @@ class User(UserMixin, db.Model):
                                 ViewSetting.this_user_id == self.id
                             ).all()
         return [self, *[load_user(result[0]) for result in results]]
+    
+    def make_post(self, request):
+        if self.can_post:
+            faceImage = request.form['faceImage']
+            awayImage = request.form['awayImage']
+            if self.username not in IMAGES.keys():
+                IMAGES[self.username] = []
+            posts = IMAGES[self.username]
+            post =  (
+                        {
+                            "images"    :   [
+                                                faceImage, 
+                                                awayImage
+                                            ], 
+                            "timestamp" :   datetime.now(), 
+                            "comments"  :   list()
+                        }
+                    )
+            IMAGES[self.username].append(post)
+
+            #send new post to everyone who can see user 'self'
+            socketio.emit   (
+                                'add_post',
+                                {
+                                    'poster':self.username,
+                                    'post_number':len(IMAGES[self.username])-1,
+                                    'new_post':render_template('post.html', poster=self, post=post, post_number=len(posts)-1)
+                                },
+                                room = self.username
+                            )
+
+            #let user receive existing posts and subscribe them to receive future content
+            self.receive_content()
 
 
 @login_manager.user_loader
@@ -174,6 +213,8 @@ def main():
     global IMAGES
     if request.method == 'GET':
         return render_template('index.html')
+    current_user.make_post(request)
+    '''
     if current_user.can_post:
         faceImage = request.form['faceImage']
         awayImage = request.form['awayImage']
@@ -205,6 +246,7 @@ def main():
         
         #let user receive existing posts and subscribe them to receive future content
         current_user.receive_content()
+    '''
         
 
 
@@ -233,7 +275,7 @@ def handle_user_interaction():
 @app.route('/signup/', methods=['GET', 'POST'])
 def handle_signup():
     if request.method == 'POST':
-        username = request.form['username']
+        username = request.form['username'].lower()
         password = request.form['password']
         if User.query.filter_by(username=username).first():
             return 'Username already exists'
@@ -269,6 +311,7 @@ def handle_logout():
 def handle_comment():
     print('RECEIVING COMMENT!')
     poster = request.form['poster']
+    commenter = load_user(current_user.id)
     post_number     = request.form['post_number']
     comment_text    = request.form['comment_text']
     comment_timestamp = datetime.now()
@@ -282,7 +325,7 @@ def handle_comment():
     print(poster, post_number)
 
     new_comment =   (
-                        current_user,
+                        commenter,
                         comment_timestamp,
                         comment_text
                     )
@@ -294,7 +337,7 @@ def handle_comment():
                             {
                                 'poster':poster,
                                 'post_number':post_number,
-                                'new_comment':render_template('comment.html', commenter=current_user, comment_timestamp=comment_timestamp, comment_text=comment_text)
+                                'new_comment':render_template('comment.html', commenter=commenter, comment_timestamp=comment_timestamp, comment_text=comment_text)
                             },
                             room = poster
                         )
@@ -327,4 +370,4 @@ def handle_disconnect():
     leave_room(current_user.username)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=7074)
