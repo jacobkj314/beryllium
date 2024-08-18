@@ -2,7 +2,9 @@
 <html>
     <body>
         <h1>Login</h1>
-        <form method="POST" action="/login">
+
+	<form method="POST" action="/login" enctype="multipart/form-data">
+	<!--<form method="POST" action="/login" enctype="application/x-www-form-urlencoded">-->
             Username: <input type="text" name="username"><br><br>
             Password: <input type="password" name="password"><br><br>
             <input type="submit" value="Login">

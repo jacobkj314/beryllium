@@ -18,6 +18,8 @@ app.config['SECRET_KEY'] = utils.get_secret_key()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///.db' 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+print(app.config['SECRET_KEY'])
+
 app.add_template_global(name='images', f=IMAGES)
 
 
@@ -288,6 +290,8 @@ def handle_signup():
 
 @app.route('/login/', methods=['GET', 'POST'])
 def handle_login():
+    print(request.form, request.args)
+    print(current_user, current_user.is_authenticated)
     if current_user.is_authenticated:
         return redirect(url_for('main'))
     if request.method == 'POST':
@@ -364,4 +368,6 @@ def handle_disconnect():
     leave_room(current_user.username)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=7074)
+    # # # socketio.run(app, host='0.0.0.0', port=7074)
+    from gevent.pywsgi import WSGIServer
+    WSGIServer(("0.0.0.0", 7074), app).serve_forever()
