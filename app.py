@@ -192,7 +192,18 @@ def update_show_setting(poster:User, viewer:User, target_show_setting:bool):
 
 
 
-
+# # # # # 
+@app.route('/test/', methods=['GET', 'POST'])
+def test():
+    if request.method == 'GET':
+        return  '''
+                <form method="POST" action="/test" enctype="application/x-www-form-urlencoded">
+                    <input type="text" name="text"><br><br>
+                    <input type="submit" value="Submit">
+                </form>
+                '''
+    #request.method == 'POST'
+    return repr(request.form)
 
 
 
