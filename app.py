@@ -319,6 +319,10 @@ def handle_logout():
 @app.post('/comment/')
 @login_required
 def handle_comment():
+
+    print(request.form, request.args)
+    print(current_user, current_user.is_authenticated)
+
     poster = request.form['poster']
     commenter = load_user(current_user.id)
     post_number     = request.form['post_number']
