@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html>
+    <head>
+        <link rel="stylesheet" href="/static/style.css"/>
+    </head>
     <body>
         <h1>Sign Up</h1>
-        <form method="POST" action="/login" enctype="application/x-www-form-urlencoded">
+        <form method="POST" action="/signup" enctype="application/x-www-form-urlencoded">
             Username: <input type="text" name="username"><br><br>
             Password: <input type="password" name="password"><br><br>
-            <p>By signing up, you agree that the owners/admins of this Beryllium instance may permanently retain your username and a cryptographic hash of your password. In the future, this Beryllium instance may retain a list of users whose images you would like to view and/or a list of users whom you permit to view your images. No other data shall be maintained permanently. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
+            <p>By signing up, you agree that the owners/admins of this Beryllium instance may permanently retain your username and a cryptographic hash of your password, as well as a list of users whose images you would like to view and a list of users whom you allow to view your own images. No other data shall be maintained permanently. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>
             <input type="submit" value="Sign Up">
         </form>
         <a href="/login">Already have an account? Sign in here!</a>

@@ -3,4 +3,3 @@ flask-socketio
 flask-login
 flask-sqlalchemy
 flask-migrate
-gevent-websocket

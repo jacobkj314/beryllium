@@ -1,0 +1,16 @@
+body {
+  text-align: center;
+  font-family: monospace;
+  font-size-adjust: .8;
+  
+  background-color: aquamarine;
+  color: darkgreen;
+}
+  
+a {
+  color: purple
+}
+a:visited {
+  color:black;
+}
+  
