@@ -203,6 +203,7 @@ def test():
                 </form>
                 '''
     #request.method == 'POST'
+    print(repr(request.form))
     return repr(request.form)
 
 
