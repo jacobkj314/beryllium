@@ -6,13 +6,15 @@ socket.on('add_post', function(data) {
     post_number = data.post_number;
     new_post = data.new_post;
 
-    console.log('new post by ' + poster + ', current user is {{ current_user.username }}')
-
+    poster_is_current_user = (poster == '{{ current_user.username }}');
+    if(!poster_is_current_user){
+        document.getElementById('you_must_post').innerHTML = '';
+    }
     
     post_id = "post_" + poster + "_" + post_number
     if(! document.getElementById(post_id)){ //check whether this post already exists
         //insert post
-        post_container = document.getElementById(poster == '{{ current_user.username }}' ? "current_user_content" : "other_user_content");
+        post_container = document.getElementById(poster_is_current_user ? "current_user_content" : "other_user_content");
         post_container.insertAdjacentHTML('afterbegin', new_post);
         //activate comment box
         (function(currentPoster, currentPostNumber) {

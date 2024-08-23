@@ -27,7 +27,7 @@ app.add_template_global(name='images', f=IMAGES)
 login_manager = LoginManager(app)
 login_manager.login_view = 'handle_login'
 
-socketio = SocketIO(app) # # # , async_mode="gevent")
+socketio = SocketIO(app, async_mode="gevent")
 user_socket_map = dict()
 
 # # # DATABASE STUFF
@@ -391,6 +391,6 @@ def handle_disconnect():
     leave_room(current_user.username)
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=7074, debug=True)
-    # # # from gevent.pywsgi import WSGIServer
-    # # # WSGIServer(("0.0.0.0", 7074), app).serve_forever()
+    # # # socketio.run(app, host='0.0.0.0', port=7074, debug=True)
+    from gevent.pywsgi import WSGIServer
+    WSGIServer(("0.0.0.0", 7074), app).serve_forever()
