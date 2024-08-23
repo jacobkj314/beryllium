@@ -210,7 +210,7 @@ def check_reset():
 
 @app.route('/', methods=['GET', 'POST'])
 @login_required
-def main():
+def home():
     print(request.form, request.args)
     print(current_user, current_user.is_authenticated)
 
@@ -255,7 +255,7 @@ def main():
 
 
 
-    return redirect(url_for('main'))
+    return redirect(url_for('home'))
 
 @app.get('/api/')
 @login_required
@@ -278,6 +278,10 @@ def handle_user_interaction():
 
 @app.route('/signup/', methods=['GET', 'POST'])
 def handle_signup():
+
+    print(request.form, request.args)
+    print(current_user, current_user.is_authenticated)
+
     if request.method == 'POST':
         username = request.form['username'].lower()
         password = request.form['password']
@@ -288,7 +292,7 @@ def handle_signup():
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)
-        return redirect(url_for('main'))
+        return redirect(url_for('home'))
     return render_template('signup.html')
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -296,14 +300,14 @@ def handle_login():
     print(request.form, request.args)
     print(current_user, current_user.is_authenticated)
     if current_user.is_authenticated:
-        return redirect(url_for('main'))
+        return redirect(url_for('home'))
     if request.method == 'POST':
         username = request.form['username'].lower()
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for('main'))
+            return redirect(url_for('home'))
         return "Invalid Credentials"
     return render_template('login.html')
 
