@@ -211,6 +211,9 @@ def check_reset():
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def main():
+    print(request.form, request.args)
+    print(current_user, current_user.is_authenticated)
+
     global IMAGES
     if request.method == 'GET':
         return render_template('index.html')
