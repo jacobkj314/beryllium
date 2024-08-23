@@ -197,7 +197,7 @@ def update_show_setting(poster:User, viewer:User, target_show_setting:bool):
 def test():
     if request.method == 'GET':
         return  '''
-                <form method="POST" action="/test" enctype="application/x-www-form-urlencoded">
+                <form method="POST" action="/test/" enctype="application/x-www-form-urlencoded">
                     <input type="text" name="text"><br><br>
                     <input type="submit" value="Submit">
                 </form>
