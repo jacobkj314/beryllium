@@ -167,6 +167,8 @@ class User(UserMixin, db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.filter_by(id=user_id).first()
+def load_user_by_username(username):
+    return User.query.filter_by(username=username).first()
 
 class ViewSetting(db.Model):
     this_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
@@ -321,18 +323,30 @@ def handle_logout():
 @app.route('/comment/', methods=['POST', 'DELETE'])
 @login_required
 def handle_comment():
-    poster = request.form['poster']
+    poster_username = request.form['poster']
+    poster = load_user_by_username(poster_username)
+
     post_number     = request.form['post_number']
 
     if request.method == 'DELETE':
         comment_number = request.form['comment_number']
-        return
+        IMAGES[poster.username][int(post_number)]["comments"][int(comment_number)][-1] = ''
+        socketio.emit   (
+                            'delete_comment',
+                            {
+                                'poster':poster.username,
+                                'post_number':post_number,
+                                'comment_number':comment_number,
+                            },
+                            room = poster.username
+                        )
+        return jsonify(success=True)
 
     commenter = load_user(current_user.id)
     comment_text    = request.form['comment_text']
     comment_timestamp = timestamp()
 
-    if not (poster in IMAGES.keys() and len(IMAGES[poster]) > int(post_number)):
+    if not (poster.username in IMAGES.keys() and len(IMAGES[poster.username]) > int(post_number)):
         return '' #TODO - probably should be a 404 error I think
     #TODO - should verify that current_user views() poster's posts
 
@@ -342,16 +356,19 @@ def handle_comment():
                         comment_text
                     )
 
-    IMAGES[poster][int(post_number)]["comments"].append(new_comment)
+    comments = IMAGES[poster.username][int(post_number)]["comments"]
+    comments.append(new_comment)
 
+    comment_number = len(comments)-1
     socketio.emit   (
                             'add_comment',
                             {
-                                'poster':poster,
+                                'poster':poster.username,
                                 'post_number':post_number,
-                                'new_comment':render_template('comment.html', commenter=commenter, comment_timestamp=comment_timestamp, comment_text=comment_text)
+                                'comment_number':comment_number,
+                                'new_comment':render_template('comment.html', poster=poster, post_number=post_number, commenter=commenter, comment_timestamp=comment_timestamp, comment_text=comment_text, comment_index=comment_number)
                             },
-                            room = poster
+                            room = poster.username
                         )
     
     return jsonify(success=True)

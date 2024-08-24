@@ -64,7 +64,7 @@ function convertTimestampsInPost(post_id) {
 
 var socket = io();
 
-//this allows the server to send posts to the client
+//this allows the server to send/remove posts to the client
 socket.on('add_post', function(data) {
     poster = data.poster;
     post_number = data.post_number;
@@ -73,18 +73,18 @@ socket.on('add_post', function(data) {
 
     poster_is_current_user = (poster == '{{ current_user.username }}');
     if(poster_is_current_user){
-        console.log('poster is current user')
         document.getElementById('upload_container').innerHTML = '';
     }
     
-    post_id = "post_" + poster + "_" + post_number
+    post_id = poster + "_" + post_number
     if(! document.getElementById(post_id)){ //check whether this post already exists
         //insert post
         post_container = document.getElementById(poster_is_current_user ? "current_user_content" : "other_user_content");
         post_container.insertAdjacentHTML('afterbegin', new_post);
+
         //activate comment box
         (function(currentPoster, currentPostNumber) {
-            comment_form = document.getElementById("user_" + currentPoster + "_post_" + currentPostNumber + "_comment_form")
+            comment_form = document.getElementById(currentPoster + "_" + currentPostNumber + "_comment_form")
             comment_form.onsubmit = function(event) {
                 event.preventDefault();
                 comment_textbox = document.getElementById(currentPoster + "_" + currentPostNumber + "_comment_text")
@@ -98,15 +98,50 @@ socket.on('add_post', function(data) {
                 comment_textbox.value = ''
             };
         })(poster, post_number);
+        //activate "delete post" form
+        //TODO
+
+
         convertTimestampsInPost(post_id)
     }
 });
+socket.on('delete_post', function(data) {
+    poster = data.poster;
+    post_number = data.post_number;
+    
+    post_id = poster + "_" + post_number;
+    post = document.getElementById(post_id);
+    if(post){ //check whether this post already exists
+        post.remove();
+    }
+});
 
-//this allows the server to send individual comments
+
+
+//this allows the server to send/remove individual comments
 socket.on('add_comment', function(data) {
-    console.log(data.poster + ' ' + data.post_number)
-    console.log(data.new_comment)
-    comment_section_id = 'user_' + data.poster + '_post_' + data.post_number + '_comments';
+    comment_section_id = data.poster + '_' + data.post_number + '_comments';
     document.getElementById(comment_section_id).insertAdjacentHTML('beforeend', data.new_comment);
-    convertTimestampsInPost(comment_section_id)
+    convertTimestampsInPost(comment_section_id);
+
+    //activate "delete comment" button
+    comment_number = data.comment_number;
+    delete_button_id = data.poster + '_' + data.post_number + '_' + comment_number
+    delete_button = document.getElementById(delete_button_id)
+    delete_button.onsubmit = function(event){
+        event.preventDefault();
+        const xhr = new XMLHttpRequest();
+        xhr.open('DELETE', '/comment/', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onload = function(){};
+        const data = 'poster=' + encodeURIComponent(data.poster) + '&post_number=' + encodeURIComponent(data.post_number) + '&comment_number=' + encodeURIComponent(comment_number);
+        xhr.send(data);
+    };
+});
+socket.on('delete_comment', function(data) {
+    comment_id = data.poster + '_' + data.post_number + '_' + data.comment_index;
+    comment = document.getElementById(comment_id);
+    if(comment){
+        comment.remove();
+    }
 });
