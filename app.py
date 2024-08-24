@@ -6,8 +6,11 @@ from sqlalchemy.orm import relationship
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from sys import argv
 import utils
 from datetime import datetime
+def timestamp():
+    return int(datetime.now().timestamp() * 1000)
 
 # # # MEMORY SETUP
 from IMAGES import IMAGES
@@ -27,7 +30,14 @@ app.add_template_global(name='images', f=IMAGES)
 login_manager = LoginManager(app)
 login_manager.login_view = 'handle_login'
 
-socketio = SocketIO(app, async_mode="gevent")
+socketio = SocketIO (
+                        app, 
+                        **(
+                            {} 
+                            if ("debug" in argv) else 
+                            {"async_mode":"gevent"}
+                        )
+                    )
 user_socket_map = dict()
 
 # # # DATABASE STUFF
@@ -113,7 +123,7 @@ class User(UserMixin, db.Model):
                                                 faceImage, 
                                                 awayImage
                                             ], 
-                            "timestamp" :   datetime.now(), 
+                            "timestamp" :   timestamp(), 
                             "comments"  :   list()
                         }
                     )
@@ -230,39 +240,6 @@ def home():
     if request.method == 'GET':
         return render_template('index.html')
     current_user.make_post(request)
-    '''
-    if current_user.can_post:
-        faceImage = request.form['faceImage']
-        awayImage = request.form['awayImage']
-        if current_user.username not in IMAGES.keys():
-            IMAGES[current_user.username] = []
-        current_user_posts = IMAGES[current_user.username]
-        post =  (
-                    {
-                        "images"    :   [
-                                            faceImage, 
-                                            awayImage
-                                        ], 
-                        "timestamp" :   datetime.now(), 
-                        "comments"  :   list()
-                    }
-                )
-        IMAGES[current_user.username].append(post)
-
-        #send new post to everyone who can see current_user
-        socketio.emit   (
-                            'add_post',
-                            {
-                                'poster':current_user.username,
-                                'post_number':len(IMAGES[current_user.username])-1,
-                                'new_post':render_template('post.html', poster=current_user, post=post, post_number=len(current_user_posts)-1)
-                            },
-                            room = current_user.username
-                        )
-        
-        #let user receive existing posts and subscribe them to receive future content
-        current_user.receive_content()
-    '''
         
 
 
@@ -339,7 +316,7 @@ def handle_comment():
     commenter = load_user(current_user.id)
     post_number     = request.form['post_number']
     comment_text    = request.form['comment_text']
-    comment_timestamp = datetime.now()
+    comment_timestamp = timestamp()
 
     if not (poster in IMAGES.keys() and len(IMAGES[poster]) > int(post_number)):
         return '' #TODO - probably should be a 404 error I think
@@ -391,6 +368,8 @@ def handle_disconnect():
     leave_room(current_user.username)
 
 if __name__ == '__main__':
-    # # # socketio.run(app, host='0.0.0.0', port=7074, debug=True)
-    from gevent.pywsgi import WSGIServer
-    WSGIServer(("0.0.0.0", 7074), app).serve_forever()
+    if "debug" in argv:
+        socketio.run(app, host='0.0.0.0', port=7074, debug=True)
+    else:
+        from gevent.pywsgi import WSGIServer
+        WSGIServer(("0.0.0.0", 7074), app).serve_forever()

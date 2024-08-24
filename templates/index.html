@@ -9,20 +9,15 @@
         <h1>BERYLLIUM</h1>
 
         {% include 'friend_search.html' %}
-        <br><a href="/logout">Logout</a>
-        <br><a href="/settings">Settings</a>
+        <br><a href="/logout/">Logout</a>
+        <br><a href="/settings/">Settings</a>
 
         <div id="current_user_content"></div>
 
-        <div id="image_upload">
-            {% if current_user.can_post %}
-                {% include 'form.html' %}
-            {% endif %}
-        </div>
+        {% include 'form.html' %}
 
 
         <div id="other_user_content">
-            <p id="you_must_post">You must post before viewing others' images!</p>
         </div>
 
     </body>
