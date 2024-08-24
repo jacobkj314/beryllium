@@ -66,7 +66,7 @@ class User(UserMixin, db.Model):
         return user_socket_map[self.id]
     def receive_content(self):
         if self.can_view_posts:
-            for user in current_user.users_to_view:
+            for user in current_user.users_to_display:
                 join_room(user.username, namespace='/', sid=current_user.sid)
                 if user.username in IMAGES.keys():
                     poster = user
@@ -76,7 +76,8 @@ class User(UserMixin, db.Model):
                                                 {
                                                     'poster':poster.username,
                                                     'post_number':post_number,
-                                                    'new_post':render_template('post.html', poster=poster, post=post, post_number=post_number)
+                                                    'new_post':render_template('post.html', poster=poster, post=post, post_number=post_number),
+                                                    'timestamp':post["timestamp"]
                                                 }
                                             )
 
@@ -95,9 +96,29 @@ class User(UserMixin, db.Model):
     @property
     def can_post(self):
         return (self.username not in IMAGES.keys())
+
+    @property
+    def views(self):
+        results = db.session.query  (
+                                        ViewSetting.that_user_id
+                            ).filter(
+                                ViewSetting.this_user_id == self.id
+                            ).all()
+        result = [load_user(result[0]) for result in results]
+        print(result)
+        return result
+
+    @property
+    def shows(self):
+        results = db.session.query  (
+                                        ShowSetting.that_user_id
+                            ).filter(
+                                ShowSetting.this_user_id == self.id
+                            ).all()
+        return [load_user(result[0]) for result in results]
     
     @property
-    def users_to_view(self):
+    def users_to_display(self):
         results = db.session.query  (
                                         ViewSetting.that_user_id
                             ).join  (
@@ -350,7 +371,7 @@ def get_js():
 
 @app.route('/settings/')
 def settings():
-    return current_user.username
+    return render_template('settings.html')
 
 
 
@@ -363,7 +384,7 @@ def handle_connect():
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    for other_user in current_user.users_to_view:
+    for other_user in current_user.users_to_display:
         leave_room(other_user.username)
     leave_room(current_user.username)
 

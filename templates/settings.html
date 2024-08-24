@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>beryllium settings</title>
+        <link rel="stylesheet" href="/static/style.css"/>
+    </head>
+    <body>
+        {% include 'header.html' %}
+        <h2>Settings - beryllium</h2>
+
+        {% include 'friend_search.html' %}
+
+        <div style="display:flex">
+            <div style="width:50%">
+                <h3>Users whose posts you view</h3>
+                <ul>
+                    {% for other_user in current_user.views %}
+                        <li><a href="/user/?username={{ other_user.username }}">{{ other_user.username }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div style="width:50%">
+                <h3>Users to whom you show your posts</h3>
+                <ul>
+                    {% for other_user in current_user.shows %}
+                        <li><a href="/user/?username={{ other_user.username }}">{{ other_user.username }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </body>
+</html>

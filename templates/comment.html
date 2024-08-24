@@ -1,1 +1,1 @@
-<li><a href="/user/?username={{ commenter.username }}">{{ commenter.username }}</a> (<span class="epoch-timestamp">{{ comment_timestamp }}</span>): {{ comment_text }}</li>
+<li><a href="/user/?username={{ commenter.username }}">{{ commenter.username }}</a> (<span class="epoch-timestamp">{{ comment_timestamp }}</span>): {{ comment_text }} {% if commenter == current_user %} <button>delete comment</button>{% endif %}</li>

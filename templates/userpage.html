@@ -2,9 +2,12 @@
 <html>
     <head>
         <link rel="stylesheet" href="/static/style.css"/>
+        <title>{{ other_user.username }} - beryllium</title>
     </head>
     <body>
-        <h1>{{ other_user.username }}</h1>
+        {% include 'header.html' %}
+
+        <h2>{{ other_user.username }}</h2>
 
         <form action="/user/" method="POST">
             <label for="viewbox">

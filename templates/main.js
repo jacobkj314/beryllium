@@ -61,6 +61,7 @@ function convertTimestampsInPost(post_id) {
 
 
 
+
 var socket = io();
 
 //this allows the server to send posts to the client
@@ -68,9 +69,11 @@ socket.on('add_post', function(data) {
     poster = data.poster;
     post_number = data.post_number;
     new_post = data.new_post;
+    timestamp = data.timestamp;
 
     poster_is_current_user = (poster == '{{ current_user.username }}');
     if(poster_is_current_user){
+        console.log('poster is current user')
         document.getElementById('upload_container').innerHTML = '';
     }
     
@@ -81,15 +84,18 @@ socket.on('add_post', function(data) {
         post_container.insertAdjacentHTML('afterbegin', new_post);
         //activate comment box
         (function(currentPoster, currentPostNumber) {
-            document.getElementById("user_" + currentPoster + "_post_" + currentPostNumber + "_comment_form").onsubmit = function(event) {
+            comment_form = document.getElementById("user_" + currentPoster + "_post_" + currentPostNumber + "_comment_form")
+            comment_form.onsubmit = function(event) {
                 event.preventDefault();
-                const comment_text = document.getElementById(currentPoster + "_" + currentPostNumber + "_comment_text").value;
+                comment_textbox = document.getElementById(currentPoster + "_" + currentPostNumber + "_comment_text")
+                const comment_text = comment_textbox.value;
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', '/comment/', true);
                 xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
                 xhr.onload = function(){};
                 const data = 'poster=' + encodeURIComponent(currentPoster) + '&post_number=' + encodeURIComponent(currentPostNumber) + '&comment_text=' + encodeURIComponent(comment_text);
                 xhr.send(data);
+                comment_textbox.value = ''
             };
         })(poster, post_number);
         convertTimestampsInPost(post_id)

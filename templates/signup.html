@@ -2,9 +2,11 @@
 <html>
     <head>
         <link rel="stylesheet" href="/static/style.css"/>
+        <title>Sign Up - beryllium</title>
     </head>
     <body>
-        <h1>Sign Up</h1>
+        {% include 'header.html' %}
+        <h2>Sign Up</h2>
         <form method="POST" action="/signup/" enctype="application/x-www-form-urlencoded">
             Username: <input type="text" name="username"><br><br>
             Password: <input type="password" name="password"><br><br>

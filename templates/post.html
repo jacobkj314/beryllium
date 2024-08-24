@@ -1,6 +1,12 @@
 <div type="post" id="post_{{ poster.username }}_{{ post_number }}">
     <p><a href="/user/?username={{ poster.username }}">{{ poster.username }}</a> (<span class="epoch-timestamp">{{ post["timestamp"] }}</span>):</p>
+    
     <img src="data:image/png;base64,{{ post['images'][0] }}" alt="Face Image of {{ poster.username }}" style="width:50%"><img src="data:image/png;base64,{{ post['images'][1] }}" alt="Away Image of {{ current_user.username }}" style="width:50%">
+    
+    {% if poster == current_user %}
+        <button>delete post</button>
+    {% endif %}
+
     <ul id="user_{{ poster.username }}_post_{{ post_number }}_comments">
         {% for commenter, comment_timestamp, comment_text in post['comments'] %}
             {% include 'comment.html' %}

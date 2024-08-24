@@ -1,7 +1,6 @@
 body {
   text-align: center;
   font-family: monospace;
-  font-size-adjust: .8;
   
   background-color: aquamarine;
   color: darkgreen;
@@ -13,4 +12,14 @@ a {
 a:visited {
   color:black;
 }
-  
+ 
+ul {
+  list-style-type: none;
+  text-align: left;
+  padding: 0;
+  margin: 0;
+}
+
+#local-timestamp {
+  font-size-adjust: -2;
+}

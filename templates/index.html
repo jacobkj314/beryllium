@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <title>beryllium</title>
         <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
         <script src="/main.js" type="text/javascript" charset="utf-8"></script>
         <link rel="stylesheet" href="/static/style.css"/>
     </head>
     <body>
-        <h1>BERYLLIUM</h1>
+        {% include 'header.html' %}
 
         {% include 'friend_search.html' %}
         <br><a href="/logout/">Logout</a>
