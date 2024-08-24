@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <rect x="5"  y="5"  width="390" height="390" fill="aquamarine"  font-weight="bold" stroke="darkgreen" stroke-width="10"/>
+  <text x="45" y="90"  font-family="monospace" font-size="90"     font-weight="bold" fill="darkgreen">4</text>
+  <text x="45" y="270" font-family="monospace" font-size="270"    font-weight="bold" fill="darkgreen">Be</text>
+  <text x="45" y="360" font-family="monospace" font-size="90"     font-weight="bold" fill="darkgreen">9.0122</text>  
+</svg>

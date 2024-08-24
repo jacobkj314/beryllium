@@ -21,7 +21,6 @@ app.config['SECRET_KEY'] = utils.get_secret_key()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///.db' 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-print(app.config['SECRET_KEY'])
 
 app.add_template_global(name='images', f=IMAGES)
 
@@ -105,7 +104,6 @@ class User(UserMixin, db.Model):
                                 ViewSetting.this_user_id == self.id
                             ).all()
         result = [load_user(result[0]) for result in results]
-        print(result)
         return result
 
     @property
@@ -234,7 +232,6 @@ def test():
                 </form>
                 '''
     #request.method == 'POST'
-    print(repr(request.form))
     return repr(request.form)
 
 
@@ -254,8 +251,6 @@ def check_reset():
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def home():
-    print(request.form, request.args)
-    print(current_user, current_user.is_authenticated)
 
     global IMAGES
     if request.method == 'GET':
@@ -289,8 +284,6 @@ def handle_user_interaction():
 @app.route('/signup/', methods=['GET', 'POST'])
 def handle_signup():
 
-    print(request.form, request.args)
-    print(current_user, current_user.is_authenticated)
 
     if request.method == 'POST':
         username = request.form['username'].lower()
@@ -307,8 +300,6 @@ def handle_signup():
 
 @app.route('/login/', methods=['GET', 'POST'])
 def handle_login():
-    print(request.form, request.args)
-    print(current_user, current_user.is_authenticated)
     if current_user.is_authenticated:
         return redirect(url_for('home'))
     if request.method == 'POST':
@@ -329,10 +320,6 @@ def handle_logout():
 @app.post('/comment/')
 @login_required
 def handle_comment():
-
-    print(request.form, request.args)
-    print(current_user, current_user.is_authenticated)
-
     poster = request.form['poster']
     commenter = load_user(current_user.id)
     post_number     = request.form['post_number']
@@ -367,6 +354,9 @@ def handle_comment():
 @app.get('/main.js')
 def get_js():
     return render_template('main.js')
+@app.get('/favicon.ico')
+def get_ico():
+    return send_from_directory('static', 'favicon.ico')
 
 
 @app.route('/settings/')
