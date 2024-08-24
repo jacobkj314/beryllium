@@ -1,4 +1,19 @@
 <header style="display: flex; justify-content: center; align-items: center;">
-    <h1 style="font-size:64px;"><a href='/'>BERYLLIUM</a></h1>
-    <img src="/static/beryllium.svg" style="width: 10%; margin-left: 10px;">
+    <h1 id="header_text" tabindex="0">BERYLLIUM</h1>
+    <img id="logo" src="/static/beryllium.png" style="width: 10%; margin-left: 10px;"/>
+
+    <script>
+        document.getElementById('header_text').addEventListener('click', function() {
+            window.location.href = '/';
+        });
+        header.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                window.location.href = '/';
+            }
+        });
+
+        document.getElementById('logo').addEventListener('click', function() {
+            window.location.href = '/';
+        });
+    </script>
 </header>

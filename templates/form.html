@@ -2,8 +2,16 @@
     <p>You must post before viewing others' images!</p>
 
     <form id="uploadForm" method="POST">
-        Face Image: <input type="file" id="faceInput" accept="image/*"><br><br>
-        Away Image: <input type="file" id="awayInput" accept="image/*"><br><br>
+        <label for="faceInput">Your face :)</label>
+        <input type="file" id="faceInput" accept="image/*" capture="user">
+
+        <br/>
+
+        <label for="awayInput">What you see</label>
+        <input type="file" id="awayInput" accept="image/*" capture="environment">
+
+        <br/>
+
         <input type="submit" value="Upload Images">
     </form>
     <p> By uploading, you agree that the owners/admins of this Beryllium instance may retain a copy of your images until tomorrow, when the server resets. Your images are never saved to permanent storage (such as a hard drive). If you would like to keep a copy of your images, be sure to save it locally or access Beryllium using an application designed to archive your images. For more details, visit <a href="https://github.com/jacobkj314/beryllium">https://github.com/jacobkj314/beryllium</a>.</p>

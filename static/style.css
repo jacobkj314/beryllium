@@ -4,10 +4,11 @@ body {
   
   background-color: aquamarine;
   color: darkgreen;
+
 }
   
 a {
-  color: purple
+  color: purple;
 }
 a:visited {
   color:black;
@@ -20,6 +21,25 @@ ul {
   margin: 0;
 }
 
+hr {
+  color: darkgreen;
+}
+
 h1 {
-  font-size: 144;
+  font-size: 72px;
+  padding: 0;
+  margin: 0;
+}
+h2 {
+  font-size: 64px;
+  padding: 0;
+  margin: 0;
+}
+h3 {
+  font-size: 32px;
+  padding:0;
+  margin:0;
+}
+p, li, label, button, input, form, body a {
+  font-size: 24px;
 }

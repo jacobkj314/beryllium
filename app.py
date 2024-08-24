@@ -70,15 +70,16 @@ class User(UserMixin, db.Model):
                 if user.username in IMAGES.keys():
                     poster = user
                     for post_number, post in enumerate(IMAGES[poster.username]):
-                        current_user.send   (
-                                                'add_post',
-                                                {
-                                                    'poster':poster.username,
-                                                    'post_number':post_number,
-                                                    'new_post':render_template('post.html', poster=poster, post=post, post_number=post_number),
-                                                    'timestamp':post["timestamp"]
-                                                }
-                                            )
+                        if post is not None:
+                            current_user.send   (
+                                                    'add_post',
+                                                    {
+                                                        'poster':poster.username,
+                                                        'post_number':post_number,
+                                                        'new_post':render_template('post.html', poster=poster, post=post, post_number=post_number),
+                                                        'timestamp':post["timestamp"]
+                                                    }
+                                                )
 
 
 
@@ -317,12 +318,17 @@ def handle_logout():
     logout_user()
     return redirect('/')
 
-@app.post('/comment/')
+@app.route('/comment/', methods=['POST', 'DELETE'])
 @login_required
 def handle_comment():
     poster = request.form['poster']
-    commenter = load_user(current_user.id)
     post_number     = request.form['post_number']
+
+    if request.method == 'DELETE':
+        comment_number = request.form['comment_number']
+        return
+
+    commenter = load_user(current_user.id)
     comment_text    = request.form['comment_text']
     comment_timestamp = timestamp()
 

@@ -8,6 +8,8 @@
         {% include 'header.html' %}
         <h2>Settings</h2>
 
+        <hr>
+
         {% include 'friend_search.html' %}
 
         <div style="display:flex">
@@ -28,5 +30,28 @@
                 </ul>
             </div>
         </div>
+
+        <hr/>
+
+        <form action="/change-password" method="POST">
+            <label for="old-password">Old Password:</label>
+            <input type="password" id="old-password" name="old-password" required>
+            
+            <label for="new-password">New Password:</label>
+            <input type="password" id="new-password" name="new-password" required>
+            
+            <button type="submit">Change Password</button>
+        </form>
+        
+        <form action="/delete-account" method="POST" onsubmit="return confirmDeletion()">
+            <button type="submit">Delete Account</button>
+          </form>
+          
+          <script>
+            function confirmDeletion() {
+              return confirm('Are you sure you want to delete your account? This action cannot be undone.');
+            }
+          </script>
+          
     </body>
 </html>
