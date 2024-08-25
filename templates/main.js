@@ -1,16 +1,9 @@
 // Function to convert an epoch timestamp to the desired "YYYY/MM/DD HH:mm:ss" format
 function epoch_timestamp_to_local_human_readable_timestamp(epochString) {
-
-    console.log(epochString)
-
     // Convert the epoch string to a number
     const epoch = parseInt(epochString);
-    console.log(epoch)
-
     // Create a Date object from the epoch
     const date = new Date(epoch);
-    console.log(date)
-
     // Format the date into "YYYY/MM/DD HH:mm:ss"
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-based, so +1
@@ -118,28 +111,52 @@ socket.on('delete_post', function(data) {
 
 
 
+
+
+
+
+
+
 //this allows the server to send/remove individual comments
 socket.on('add_comment', function(data) {
-    comment_section_id = data.poster + '_' + data.post_number + '_comments';
-    document.getElementById(comment_section_id).insertAdjacentHTML('beforeend', data.new_comment);
-    convertTimestampsInPost(comment_section_id);
-
-    //activate "delete comment" button
+    poster = data.poster;
+    post_number = data.post_number;
+    new_comment = data.new_comment;
     comment_number = data.comment_number;
-    delete_button_id = data.poster + '_' + data.post_number + '_' + comment_number
-    delete_button = document.getElementById(delete_button_id)
-    delete_button.onsubmit = function(event){
-        event.preventDefault();
-        const xhr = new XMLHttpRequest();
-        xhr.open('DELETE', '/comment/', true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onload = function(){};
-        const data = 'poster=' + encodeURIComponent(data.poster) + '&post_number=' + encodeURIComponent(data.post_number) + '&comment_number=' + encodeURIComponent(comment_number);
-        xhr.send(data);
-    };
+
+    
+    comment_section_id = poster + '_' + post_number + '_comments';
+    comment_id = poster + '_' + post_number + '_' + comment_number;
+    if(!document.getElementById(comment_id)){
+        document.getElementById(comment_section_id).insertAdjacentHTML('beforeend', new_comment);
+    }
+
+    
+
+    convertTimestampsInPost(comment_section_id);
+    
+    //activate "delete comment" button
+    if(poster == '{{ current_user.username }}'){
+
+        (function (current_poster, current_post_number, current_comment_number) {
+            delete_button_id = current_poster + '_' + current_post_number + '_' + current_comment_number + "_delete";
+            delete_button = document.getElementById(delete_button_id)
+            delete_button.onclick = function(event){
+                event.preventDefault();
+                const xhr = new XMLHttpRequest();
+                xhr.open('DELETE', '/comment/', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.onload = function(){};
+                const data = 'poster=' + encodeURIComponent(current_poster) + '&post_number=' + encodeURIComponent(current_post_number) + '&comment_number=' + encodeURIComponent(current_comment_number);
+                xhr.send(data);
+            };
+        })(poster, post_number, comment_number);
+    } 
+    
 });
 socket.on('delete_comment', function(data) {
-    comment_id = data.poster + '_' + data.post_number + '_' + data.comment_index;
+    comment_id = data.poster + '_' + data.post_number + '_' + data.comment_number;
+    console.log(comment_id);
     comment = document.getElementById(comment_id);
     if(comment){
         comment.remove();

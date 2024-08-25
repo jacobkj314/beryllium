@@ -8,6 +8,7 @@
     {% endif %}
 
     <ul id="{{ poster.username }}_{{ post_number }}_comments">
+        <!--
         {% for commenter, comment_timestamp, comment_text in post['comments'] %}
             {% with comment_index=loop.index0 %}
                 {% if comment_text != '' %}
@@ -15,11 +16,8 @@
                 {% endif %}
             {% endwith %}
         {% endfor %}
+        -->
     </ul>
-
-
-
-
 
     <form id="{{ poster.username }}_{{ post_number }}_comment_form" method="POST">
         <input type="text" id="{{ poster.username }}_{{ post_number }}_comment_text" name="comment_text" required>

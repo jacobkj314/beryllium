@@ -80,6 +80,20 @@ class User(UserMixin, db.Model):
                                                         'timestamp':post["timestamp"]
                                                     }
                                                 )
+                            for comment_index, (commenter, comment_timestamp, comment_text) in enumerate(post['comments']):
+                                if comment_text != '':
+                                    print(poster, post_number, comment_index, commenter)
+                                    comment_rendered = render_template('comment.html', poster=poster, post_number=post_number, comment_index=comment_index, comment_text=comment_text, comment_timestamp=comment_timestamp, commenter=commenter, current_user=current_user)
+                                    print(comment_rendered)
+                                    current_user.send   (
+                                                            'add_comment',
+                                                            {
+                                                                'poster':poster.username,
+                                                                'post_number':post_number,
+                                                                'new_comment':comment_rendered,
+                                                                'comment_number':comment_index,
+                                                            }
+                                                        )
 
 
 
@@ -350,11 +364,11 @@ def handle_comment():
         return '' #TODO - probably should be a 404 error I think
     #TODO - should verify that current_user views() poster's posts
 
-    new_comment =   (
+    new_comment =   [
                         commenter,
                         comment_timestamp,
                         comment_text
-                    )
+                    ]
 
     comments = IMAGES[poster.username][int(post_number)]["comments"]
     comments.append(new_comment)
@@ -366,7 +380,7 @@ def handle_comment():
                                 'poster':poster.username,
                                 'post_number':post_number,
                                 'comment_number':comment_number,
-                                'new_comment':render_template('comment.html', poster=poster, post_number=post_number, commenter=commenter, comment_timestamp=comment_timestamp, comment_text=comment_text, comment_index=comment_number)
+                                'new_comment':render_template('comment.html', poster=poster, post_number=post_number, commenter=commenter, comment_timestamp=comment_timestamp, comment_text=comment_text, comment_index=comment_number, current_user=current_user)
                             },
                             room = poster.username
                         )
